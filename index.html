@@ -1,0 +1,1413 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="基于 AI 原理学习总纲的可编辑互动学习地图">
+  <title>AI 学习互动框架 v2.1</title>
+  <style>
+    :root {
+      --bg: #f5f6f2;
+      --surface: #ffffff;
+      --surface-2: #eef1ed;
+      --ink: #17201c;
+      --muted: #647069;
+      --line: #ccd3ce;
+      --strong-line: #99a49d;
+      --green: #1f6a4a;
+      --green-soft: #dcecdf;
+      --blue: #285f89;
+      --blue-soft: #dce9f2;
+      --amber: #9a6420;
+      --amber-soft: #f6e8c9;
+      --rose: #964c58;
+      --rose-soft: #f3dfe2;
+      --focus: #235f8a;
+      --shadow: 0 12px 30px rgba(23, 32, 28, .08);
+      --radius: 8px;
+      font-family: Inter, "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      color-scheme: light;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--ink); }
+    button, input, select, textarea { font: inherit; letter-spacing: 0; }
+    button, select, input[type="file"] { cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--focus) 40%, transparent);
+      outline-offset: 2px;
+    }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    .shell { min-height: 100vh; }
+    .topbar { background: var(--surface); border-bottom: 1px solid var(--line); }
+    .topbar-inner, .tabs-inner, .main, .footer-inner { width: min(1540px, calc(100% - 32px)); margin: 0 auto; }
+    .topbar-inner { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.4fr) auto; gap: 24px; align-items: center; padding: 20px 0 16px; }
+    .brand-kicker { margin: 0 0 4px; color: var(--green); font-size: .8rem; font-weight: 700; }
+    h1 { margin: 0; font-size: clamp(1.45rem, 2.2vw, 2.15rem); line-height: 1.2; letter-spacing: 0; }
+    .brand-meta { margin: 7px 0 0; color: var(--muted); font-size: .86rem; }
+    .progress-summary { min-width: 0; }
+    .progress-head { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+    .progress-title { font-weight: 700; }
+    .progress-value { color: var(--green); font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .progress-track { height: 10px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; }
+    .progress-fill { height: 100%; width: 0; background: var(--green); transition: width .25s ease; }
+    .progress-detail { display: flex; justify-content: space-between; gap: 12px; margin-top: 7px; color: var(--muted); font-size: .82rem; }
+    .top-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    .btn { min-height: 38px; padding: 8px 12px; border: 1px solid var(--strong-line); border-radius: 6px; background: var(--surface); color: var(--ink); font-weight: 650; }
+    .btn:hover { background: var(--surface-2); }
+    .btn.primary { border-color: var(--green); background: var(--green); color: #fff; }
+    .btn.primary:hover { background: #18543b; }
+    .btn.danger { border-color: var(--rose); color: var(--rose); }
+    .btn.small { min-height: 32px; padding: 5px 9px; font-size: .85rem; }
+    .btn.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+    .file-input { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }
+
+    .tabs { position: sticky; top: 0; z-index: 20; background: rgba(245, 246, 242, .95); border-bottom: 1px solid var(--line); backdrop-filter: blur(10px); }
+    .tabs-inner { display: flex; gap: 4px; padding: 8px 0; overflow-x: auto; }
+    .tab { min-height: 36px; padding: 7px 13px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--muted); font-weight: 700; white-space: nowrap; }
+    .tab[aria-selected="true"] { background: var(--surface); border-color: var(--line); color: var(--ink); box-shadow: 0 2px 8px rgba(23, 32, 28, .05); }
+
+    .main { padding: 20px 0 42px; }
+    .view[hidden] { display: none; }
+    .next-strip { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 12px 14px; margin-bottom: 16px; background: var(--blue-soft); border-left: 4px solid var(--blue); border-radius: 0 6px 6px 0; }
+    .next-label { color: var(--blue); font-size: .78rem; font-weight: 800; }
+    .next-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 750; }
+    .map-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(360px, .8fr); gap: 16px; align-items: start; }
+    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .map-panel { min-width: 0; overflow: hidden; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+    .panel-title { margin: 0; font-size: 1rem; }
+    .map-head-left { display: grid; gap: 7px; min-width: 0; }
+    .map-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; color: var(--muted); font-size: .78rem; }
+    .crumb { padding: 0; border: 0; background: transparent; color: var(--blue); font-weight: 700; }
+    .crumb[aria-current="page"] { color: var(--muted); cursor: default; }
+    .map-head-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; }
+    .legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; color: var(--muted); font-size: .78rem; }
+    .legend-item { display: inline-flex; align-items: center; gap: 5px; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+    .legend-dot.learning { background: var(--blue); }
+    .legend-dot.mastered { background: var(--green); }
+    .legend-dot.review { background: var(--amber); }
+    .map-wrap { position: relative; min-height: 610px; padding: 10px; background: var(--surface); }
+    #learningMap { display: block; width: 100%; min-height: 590px; }
+    .map-caption { display: flex; flex-wrap: wrap; gap: 14px; padding: 10px 16px 13px; border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
+    .line-sample { display: inline-block; width: 26px; height: 0; margin-right: 6px; border-top: 2px solid var(--strong-line); vertical-align: middle; }
+    .line-sample.parallel { border-top-style: dashed; }
+    .line-sample.project { border-top-style: dotted; border-top-color: var(--amber); }
+    .detail-panel { position: sticky; top: 62px; max-height: calc(100vh - 82px); overflow: auto; }
+    .detail-content { padding: 16px; }
+    .detail-code { color: var(--green); font-size: .82rem; font-weight: 800; }
+    .detail-title { margin: 5px 0 7px; font-size: 1.35rem; line-height: 1.3; }
+    .detail-sub { margin: 0; color: var(--muted); line-height: 1.65; }
+    .mini-progress { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center; margin: 15px 0; }
+    .mini-progress .progress-track { height: 8px; }
+    .mini-progress strong { color: var(--green); font-variant-numeric: tabular-nums; }
+    .logic-box { margin: 12px 0 16px; padding: 11px 12px; background: var(--surface-2); border-left: 3px solid var(--green); border-radius: 0 5px 5px 0; font-size: .86rem; line-height: 1.55; }
+    .logic-row + .logic-row { margin-top: 5px; }
+    .logic-label { color: var(--muted); font-weight: 700; }
+    .section-label { margin: 18px 0 9px; font-size: .82rem; font-weight: 800; text-transform: uppercase; color: var(--muted); }
+    .unit-list { display: grid; gap: 7px; }
+    .unit-row { display: grid; grid-template-columns: minmax(0, 1fr) 92px; gap: 8px; align-items: center; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+    .unit-row.selected { border-color: var(--blue); box-shadow: inset 3px 0 var(--blue); }
+    .unit-select-btn { min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+    .unit-id { color: var(--muted); font-size: .74rem; font-weight: 800; }
+    .unit-name { display: block; margin-top: 2px; line-height: 1.35; font-weight: 700; }
+    .status-select, .field { width: 100%; border: 1px solid var(--strong-line); border-radius: 5px; background: var(--surface); color: var(--ink); }
+    .status-select { min-height: 34px; padding: 5px 7px; font-size: .8rem; }
+    .status-select[data-status="learning"] { border-color: var(--blue); background: var(--blue-soft); }
+    .status-select[data-status="mastered"] { border-color: var(--green); background: var(--green-soft); }
+    .status-select[data-status="review"] { border-color: var(--amber); background: var(--amber-soft); }
+    .unit-workspace { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .workspace-title { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+    .workspace-title h3 { margin: 0; font-size: 1rem; line-height: 1.4; }
+    .unit-summary { margin: 8px 0 12px; color: var(--muted); font-size: .86rem; line-height: 1.55; }
+    .criterion { margin: 0 0 14px; padding: 9px 10px; border-left: 3px solid var(--amber); background: var(--amber-soft); border-radius: 0 5px 5px 0; font-size: .84rem; line-height: 1.5; }
+    .field-group { margin-top: 11px; }
+    .field-label { display: block; margin-bottom: 5px; font-size: .8rem; font-weight: 750; color: var(--muted); }
+    textarea.field { min-height: 78px; padding: 9px 10px; resize: vertical; line-height: 1.5; }
+    input.field { min-height: 38px; padding: 7px 9px; }
+    .workspace-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .save-hint { min-height: 1.3em; margin-top: 8px; color: var(--green); font-size: .76rem; }
+
+    .toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 170px auto; gap: 10px; align-items: end; margin-bottom: 14px; }
+    .toolbar label { display: grid; gap: 5px; color: var(--muted); font-size: .8rem; font-weight: 700; }
+    .toolbar input, .toolbar select { min-height: 40px; padding: 8px 10px; border: 1px solid var(--strong-line); border-radius: 6px; background: var(--surface); color: var(--ink); }
+    .outline { display: grid; gap: 10px; }
+    .module-block { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+    .module-summary { display: grid; grid-template-columns: 70px minmax(0, 1fr) 110px 22px; gap: 12px; align-items: center; padding: 13px 15px; cursor: pointer; list-style: none; }
+    .module-summary::-webkit-details-marker { display: none; }
+    .module-summary:hover { background: var(--surface-2); }
+    .module-code { color: var(--green); font-weight: 850; }
+    .module-summary-title { font-weight: 750; }
+    .module-summary-meta { color: var(--muted); font-size: .78rem; }
+    .module-percent { text-align: right; color: var(--green); font-weight: 750; font-variant-numeric: tabular-nums; }
+    .chevron { transition: transform .2s ease; }
+    details[open] > summary .chevron { transform: rotate(90deg); }
+    .outline-units { border-top: 1px solid var(--line); }
+    .outline-unit { display: grid; grid-template-columns: minmax(0, 1fr) 130px 96px; gap: 12px; align-items: center; padding: 11px 15px 11px 97px; border-bottom: 1px solid var(--line); }
+    .outline-unit:last-child { border-bottom: 0; }
+    .outline-unit-title { line-height: 1.4; }
+    .outline-unit-note { overflow: hidden; color: var(--rose); font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+    .outline-empty { padding: 36px; text-align: center; color: var(--muted); }
+
+    .log-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(300px, .7fr); gap: 16px; align-items: start; }
+    .log-panel, .reflection-panel, .maintenance-section { padding: 16px; }
+    .log-panel h2, .reflection-panel h2, .maintenance-section h2 { margin: 0 0 12px; font-size: 1rem; }
+    .log-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    .log-table th, .log-table td { padding: 9px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .log-table th { color: var(--muted); font-size: .75rem; }
+    .log-empty { padding: 28px 8px; color: var(--muted); text-align: center; }
+    .reflection-panel { position: sticky; top: 62px; }
+    .reflection-meta { color: var(--muted); font-size: .82rem; line-height: 1.6; }
+    .reflection-list { display: grid; gap: 8px; margin-top: 12px; }
+    .reflection-item { padding: 10px; border-left: 3px solid var(--rose); background: var(--rose-soft); border-radius: 0 5px 5px 0; }
+    .reflection-item strong { display: block; font-size: .84rem; }
+    .reflection-item p { margin: 4px 0 0; font-size: .8rem; line-height: 1.5; }
+
+    .maintenance-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .meta-table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+    .meta-table td { padding: 9px 7px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    .meta-table td:first-child { width: 110px; color: var(--muted); font-weight: 700; }
+    .action-stack { display: flex; flex-wrap: wrap; gap: 8px; }
+    .edit-note { color: var(--muted); font-size: .82rem; line-height: 1.7; }
+    .edit-mode-banner { display: none; margin-bottom: 14px; padding: 11px 13px; background: var(--amber-soft); border-left: 4px solid var(--amber); }
+    body.edit-mode .edit-mode-banner { display: block; }
+    .edit-fields { display: none; gap: 10px; margin-top: 12px; }
+    body.edit-mode .edit-fields { display: grid; }
+    .version-list { margin: 0; padding-left: 20px; line-height: 1.7; }
+    footer { border-top: 1px solid var(--line); color: var(--muted); }
+    .footer-inner { padding: 18px 0 28px; font-size: .78rem; line-height: 1.6; }
+    .toast { position: fixed; right: 18px; bottom: 18px; z-index: 60; max-width: min(360px, calc(100% - 36px)); padding: 11px 14px; border-radius: 6px; background: var(--ink); color: var(--surface); box-shadow: var(--shadow); transform: translateY(20px); opacity: 0; pointer-events: none; transition: .2s ease; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+    .map-edge { fill: none; stroke: var(--strong-line); stroke-width: 2; }
+    .map-edge.parallel { stroke-dasharray: 7 6; }
+    .map-edge.project { stroke: var(--amber); stroke-dasharray: 3 5; }
+    .map-stage-label { fill: var(--muted); font-size: 12px; font-weight: 700; }
+    .map-node { cursor: pointer; }
+    .map-node rect.node-bg { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; rx: 7; }
+    .map-node:hover rect.node-bg, .map-node:focus rect.node-bg { stroke: var(--blue); stroke-width: 2; }
+    .map-node.selected rect.node-bg { stroke: var(--green); stroke-width: 3; }
+    .map-node .node-code { fill: var(--green); font-size: 12px; font-weight: 800; }
+    .map-node .node-title { fill: var(--ink); font-size: 13px; font-weight: 750; }
+    .map-node .node-meta { fill: var(--muted); font-size: 10px; }
+    .map-node .node-track { fill: var(--surface-2); }
+    .map-node .node-fill { fill: var(--green); }
+    .map-node.project-node rect.node-bg { fill: var(--amber-soft); stroke: var(--amber); }
+    .map-node.project-node .node-code { fill: var(--amber); }
+    .map-node.root-node rect.node-bg { fill: var(--green-soft); stroke: var(--green); }
+    .map-node.leaf-node rect.node-bg { fill: var(--blue-soft); }
+    .map-node .node-kind { fill: var(--blue); font-size: 10px; font-weight: 800; }
+    .drill-hint { fill: var(--muted); font-size: 11px; }
+    .detail-level { display: inline-flex; align-items: center; min-height: 25px; padding: 3px 8px; margin-bottom: 8px; border-radius: 4px; background: var(--blue-soft); color: var(--blue); font-size: .74rem; font-weight: 800; }
+    .child-preview { display: grid; gap: 7px; margin-top: 12px; }
+    .child-preview-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; }
+    .child-preview-row strong { font-size: .84rem; line-height: 1.4; }
+    .atom-context { margin: 10px 0 14px; color: var(--muted); font-size: .8rem; line-height: 1.55; }
+
+    @media (max-width: 1100px) {
+      .topbar-inner { grid-template-columns: 1fr 1fr; }
+      .top-actions { grid-column: 1 / -1; justify-content: flex-start; }
+      .map-layout { grid-template-columns: 1fr; }
+      .detail-panel { position: static; max-height: none; }
+      .map-wrap { min-height: 560px; }
+      #learningMap { min-height: 540px; }
+    }
+
+    @media (max-width: 720px) {
+      .topbar-inner, .tabs-inner, .main, .footer-inner { width: min(100% - 20px, 1540px); }
+      .topbar-inner { grid-template-columns: 1fr; gap: 16px; }
+      .top-actions { grid-column: auto; }
+      .top-actions .btn { flex: 1 1 auto; }
+      .next-strip { grid-template-columns: 1fr auto; }
+      .next-label { grid-column: 1 / -1; }
+      .next-title { white-space: normal; }
+      .panel-head { align-items: flex-start; flex-direction: column; }
+      .map-head-actions { justify-content: flex-start; }
+      .legend { justify-content: flex-start; }
+      .map-wrap { min-height: 1080px; padding: 4px; }
+      #learningMap { min-height: 1060px; }
+      .toolbar { grid-template-columns: 1fr; }
+      .module-summary { grid-template-columns: 58px minmax(0, 1fr) 64px 18px; gap: 7px; padding: 11px 10px; }
+      .module-summary-meta { display: none; }
+      .outline-unit { grid-template-columns: 1fr 105px; padding: 11px 10px; }
+      .outline-unit-note { grid-column: 1 / -1; }
+      .log-layout, .maintenance-grid { grid-template-columns: 1fr; }
+      .reflection-panel { position: static; }
+      .log-table thead { display: none; }
+      .log-table, .log-table tbody, .log-table tr, .log-table td { display: block; }
+      .log-table tr { padding: 10px 0; border-bottom: 1px solid var(--line); }
+      .log-table td { padding: 3px 0; border: 0; }
+      .unit-row { grid-template-columns: minmax(0, 1fr) 96px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div>
+          <p class="brand-kicker">系统学习控制台</p>
+          <h1>AI 原理学习地图</h1>
+          <p class="brand-meta">从基本概念，到模型原理，再到教育 AI 研究 · v2.1</p>
+        </div>
+        <div class="progress-summary" aria-label="总体学习进度">
+          <div class="progress-head"><span class="progress-title">第一轮总进度</span><strong class="progress-value" id="overallPercent">0%</strong></div>
+          <div class="progress-track"><div class="progress-fill" id="overallProgress"></div></div>
+          <div class="progress-detail"><span id="overallCounts">0 / 0 个知识点已掌握</span><span id="activeCounts">0 个正在学习</span></div>
+        </div>
+        <div class="top-actions">
+          <button class="btn" id="exportBtn" type="button">导出进度备份</button>
+          <button class="btn" id="importBtn" type="button">导入备份</button>
+          <input class="file-input" id="importFile" type="file" accept="application/json,.json">
+          <button class="btn primary" id="continueBtn" type="button">继续学习</button>
+        </div>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="主要视图">
+      <div class="tabs-inner" role="tablist">
+        <button class="tab" role="tab" aria-selected="true" aria-controls="mapView" data-view="mapView" type="button">学习地图</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="outlineView" data-view="outlineView" type="button">全部清单</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="logView" data-view="logView" type="button">学习记录</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="maintenanceView" data-view="maintenanceView" type="button">维护与版本</button>
+      </div>
+    </nav>
+
+    <main class="main">
+      <section class="view" id="mapView" role="tabpanel">
+        <div class="next-strip">
+          <span class="next-label">建议下一步</span>
+          <strong class="next-title" id="nextTitle">M00.1 AI、机器学习、深度学习和大语言模型的关系</strong>
+          <button class="btn small" id="nextOpenBtn" type="button">打开知识点</button>
+        </div>
+
+        <div class="map-layout">
+          <section class="panel map-panel" aria-labelledby="mapHeading">
+            <div class="panel-head">
+              <div class="map-head-left">
+                <h2 class="panel-title" id="mapHeading">知识依赖地图</h2>
+                <nav class="map-breadcrumb" id="mapBreadcrumb" aria-label="当前知识层级"></nav>
+              </div>
+              <div class="map-head-actions">
+                <button class="btn small" id="mapBackBtn" type="button" disabled>返回上一级</button>
+                <div class="legend" aria-label="状态图例">
+                <span class="legend-item"><span class="legend-dot"></span>未开始</span>
+                <span class="legend-item"><span class="legend-dot learning"></span>学习中</span>
+                <span class="legend-item"><span class="legend-dot mastered"></span>已掌握</span>
+                <span class="legend-item"><span class="legend-dot review"></span>需复习</span>
+                </div>
+              </div>
+            </div>
+            <div class="map-wrap">
+              <svg id="learningMap" role="img" aria-labelledby="mapSvgTitle mapSvgDesc">
+                <title id="mapSvgTitle">AI 系统学习知识依赖地图</title>
+                <desc id="mapSvgDesc">从 AI 总览开始，编程和数学并行打底，经过机器学习、神经网络、Transformer 与大语言模型，最后进入系统评估和教育研究。</desc>
+              </svg>
+            </div>
+            <div class="map-caption">
+              <span id="mainRelationLabel"><span class="line-sample"></span>主线先修</span>
+              <span id="sequenceRelationLabel"><span class="line-sample parallel"></span>并行学习</span>
+              <span id="projectRelationLabel"><span class="line-sample project"></span>项目验收</span>
+              <span id="mapInstruction">点击模块进入小节图，再点击小节进入原子知识点图</span>
+            </div>
+          </section>
+
+          <aside class="panel detail-panel" id="detailPanel" aria-live="polite">
+            <div class="detail-content" id="detailContent"></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="outlineView" role="tabpanel" hidden>
+        <div class="toolbar">
+          <label>搜索知识点<input id="searchInput" type="search" placeholder="例如：注意力、评估、Python"></label>
+          <label>筛选状态<select id="statusFilter"><option value="all">全部状态</option><option value="not-started">未开始</option><option value="learning">学习中</option><option value="mastered">已掌握</option><option value="review">需复习</option><option value="has-question">有困惑记录</option></select></label>
+          <button class="btn" id="expandAllBtn" type="button">展开全部</button>
+        </div>
+        <div class="outline" id="outlineList"></div>
+      </section>
+
+      <section class="view" id="logView" role="tabpanel" hidden>
+        <div class="log-layout">
+          <section class="panel log-panel">
+            <div class="panel-head" style="padding:0 0 12px;border:0">
+              <h2>状态变更记录</h2>
+              <button class="btn small" id="clearLogBtn" type="button">清空记录</button>
+            </div>
+            <div id="historyTable"></div>
+          </section>
+          <aside class="panel reflection-panel">
+            <h2>当前薄弱点</h2>
+            <p class="reflection-meta">这里汇总所有“需复习”知识点和已填写的困惑。复习时优先从这里选择。</p>
+            <div class="reflection-list" id="reflectionList"></div>
+            <div class="workspace-actions"><button class="btn primary" id="copyReviewBtn" type="button">复制薄弱点复习指令</button></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="maintenanceView" role="tabpanel" hidden>
+        <div class="edit-mode-banner"><strong>课程编辑模式已开启。</strong>在学习地图中下钻到知识点即可修改标题、说明和通过标准；也可以向模块中添加自定义知识点。</div>
+        <div class="maintenance-grid">
+          <section class="panel maintenance-section">
+            <h2>文档元数据</h2>
+            <table class="meta-table">
+              <tr><td>文档名称</td><td>AI 学习互动框架</td></tr>
+              <tr><td>创建日期</td><td>2026-09-14（中国时区）</td></tr>
+              <tr><td>版本</td><td>v2.1</td></tr>
+              <tr><td>当前状态</td><td>第一轮学习 · 未开始</td></tr>
+              <tr><td>原始大纲</td><td>260913 AI原理学习总纲 v1.0.md</td></tr>
+              <tr><td>核心目标</td><td>理解 AI 原理，能够实现和评估基础模型，并用于教育研究与实践。</td></tr>
+              <tr><td>下一步</td><td id="maintenanceNext">学习 M00.1</td></tr>
+            </table>
+          </section>
+          <section class="panel maintenance-section">
+            <h2>备份与恢复</h2>
+            <p class="edit-note">学习状态保存在当前浏览器。定期导出 JSON，换电脑、清理浏览器或交给 GPT/Codex 修改前都应备份。</p>
+            <div class="action-stack">
+              <button class="btn primary" id="exportBtn2" type="button">导出 JSON 备份</button>
+              <button class="btn" id="importBtn2" type="button">导入 JSON 备份</button>
+              <button class="btn danger" id="resetBtn" type="button">重置全部个人数据</button>
+            </div>
+          </section>
+          <section class="panel maintenance-section">
+            <h2>课程内容编辑</h2>
+            <p class="edit-note">开启后可在右侧知识点详情里修改内容或添加自定义知识点。核心大纲不会从源文件中删除；页面修改保存在浏览器并包含在 JSON 备份里。</p>
+            <div class="action-stack">
+              <button class="btn" id="editModeBtn" type="button" aria-pressed="false">开启编辑模式</button>
+              <button class="btn danger" id="resetContentBtn" type="button">恢复默认课程内容</button>
+            </div>
+          </section>
+          <section class="panel maintenance-section">
+            <h2>给后续 GPT / Codex 的读取说明</h2>
+            <p class="edit-note">先让它读取此 HTML 中的课程结构，再导入你导出的 JSON 进度备份。教学顺序应保持“直观解释 → 简单例子 → 必要公式 → 代码或练习 → 3—5 个检查问题”。只有你明确确认掌握后，才标记为已掌握。</p>
+            <div class="action-stack"><button class="btn" id="copyProtocolBtn" type="button">复制教学协议</button></div>
+          </section>
+          <section class="panel maintenance-section" style="grid-column:1/-1">
+            <h2>版本记录</h2>
+            <ul class="version-list">
+              <li><strong>v2.1 · 2026-09-14</strong>：增加 UTF-8 BOM 与双重字符集声明，修复部分 Windows 本地文件查看环境中的中文乱码。</li>
+              <li><strong>v2.0 · 2026-09-14</strong>：将两层学习地图升级为“全局—模块—小节—原子知识点”四层下钻图；细化最小进度、困惑记录与旧版数据迁移。</li>
+              <li><strong>v1.0 · 2026-09-14</strong>：由《AI 原理学习总纲 v1.0》生成互动依赖地图、学习清单、状态管理、困惑记录、内容编辑和备份恢复功能。</li>
+            </ul>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <footer><div class="footer-inner">预计周期：每周 8–10 小时，约 9–12 个月完成第一轮。完成标准：能解释、能动手、能识别失败场景、能通过检查、能连接真实教育问题。</div></footer>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const APP_VERSION = "2.1";
+    const STORAGE_KEY = "ai-learning-framework-v2";
+    const LEGACY_STORAGE_KEY = "ai-learning-framework-v1";
+    const STATUS = {
+      "not-started": "未开始",
+      learning: "学习中",
+      mastered: "已掌握",
+      review: "需复习"
+    };
+
+    const curriculum = [
+      {
+        id: "M00", title: "AI 总览", duration: "约 1 周", phase: "建立全局坐标",
+        goal: "能画出 AI 技术地图，解释核心术语，并区分训练与使用。",
+        why: "先知道全局中每个概念的位置，后续公式、代码和模型才不会成为彼此孤立的知识。",
+        prereq: "无", leadsTo: "M01 编程与数据、M02 数学语言",
+        questions: ["为什么机器学习不等同于写很多规则？", "GPT 为什么能生成训练语料中未逐字出现的句子？", "训练和推理分别发生什么？", "模型为什么会产生幻觉？"],
+        outputs: ["用自己的话画出 AI 技术地图", "把学生课程通过预测拆成输入、标签、模型、损失和指标"],
+        units: [
+          ["M00.1", "AI、机器学习、深度学习与大语言模型", "理解四者的包含关系，以及生成式 AI 在其中的位置。", "能不依赖术语画出层级图并举出各自例子。"],
+          ["M00.2", "符号系统与数据驱动系统", "比较显式规则、搜索推理与从数据中学习规律的差异。", "能说明一个问题更适合规则还是学习方法，并解释原因。"],
+          ["M00.3", "四种学习范式", "区分监督、无监督、自监督和强化学习的信号来源。", "看到一个任务时能判断学习范式并指出反馈来自哪里。"],
+          ["M00.4", "机器学习统一循环", "串联任务、数据、表示、模型、损失、优化、评估、部署与反馈。", "能把一个真实问题完整映射到统一循环。"],
+          ["M00.5", "训练、推理与模型边界", "理解参数如何在训练中改变、推理时如何使用，以及幻觉与不可靠性的来源。", "能解释流畅输出为何不等于事实，并列出至少三条边界。"]
+        ]
+      },
+      {
+        id: "M01", title: "Python、数据与实验环境", duration: "约 3–4 周", phase: "建立实现能力",
+        goal: "能读取、清洗、可视化数据，并在可复现环境中运行实验。",
+        why: "代码是验证原理的实验工具，数据处理质量则直接决定模型结论是否可信。",
+        prereq: "M00", leadsTo: "M03 传统机器学习；与 M02 并行",
+        questions: ["一行数据、一列特征和一个标签分别是什么？", "数据清洗为什么会改变模型结果？", "为什么要固定随机种子并记录参数？"],
+        outputs: ["读取学生学习行为数据集", "统计变量分布并画至少三张图", "编写数据说明与隐私风险文档"],
+        units: [
+          ["M01.1", "Python 基础语法", "变量、数据类型、条件、循环、函数和模块。", "能独立写一个读取输入、处理数据并输出结果的小程序。"],
+          ["M01.2", "Notebook、命令行与文件", "理解代码单元、路径、终端命令和基本文件组织。", "能从命令行启动项目并准确找到输入与输出文件。"],
+          ["M01.3", "NumPy 数组与矩阵运算", "用数组表示批量数据，并进行索引、广播和矩阵计算。", "能用 NumPy 完成批量计算并解释数组形状。"],
+          ["M01.4", "Pandas 与数据清洗", "处理数据表、缺失值、异常值、类型与重复记录。", "能写出可重复运行的数据清洗流程并说明每一步影响。"],
+          ["M01.5", "数据可视化", "使用 Matplotlib / Seaborn 检查分布、关系与异常。", "能选择合适图形回答问题，而不是只追求图表好看。"],
+          ["M01.6", "Git、环境与实验记录", "管理版本、虚拟环境、依赖、随机种子和实验产物。", "别人能根据记录复现实验结果。"]
+        ]
+      },
+      {
+        id: "M02", title: "数学语言", duration: "约 6–8 周，并行", phase: "建立理解工具",
+        goal: "能看懂并解释机器学习中的基本公式，把符号与直观意义连接起来。",
+        why: "数学不是先修门槛，而是用更短语言精确描述模型、误差和变化的工具，应与代码并行学习。",
+        prereq: "M00；可与 M01 并行", leadsTo: "贯穿 M03–M10",
+        questions: ["函数、向量、概率和梯度分别描述什么？", "为什么相关性不等于因果？", "负梯度更新的直观意义是什么？"],
+        outputs: ["手算并用代码验证小型矩阵运算", "读懂常见损失与优化公式", "根据训练曲线判断过拟合"],
+        units: [
+          ["M02.1", "函数和图像", "变量、函数、坐标、斜率、指数和对数；模型本质上是复杂函数。", "能画一次、二次和指数函数，并解释输入变化如何影响输出。"],
+          ["M02.2", "向量和矩阵", "向量、矩阵、内积、距离、维度与线性变换，以及 Embedding 的直觉。", "能手算小型矩阵乘法并用 NumPy 验证。"],
+          ["M02.3", "概率和统计", "条件概率、分布、统计量、采样偏差、置信区间与最大似然。", "能解释分类概率、样本偏差与模型偏差之间的关系。"],
+          ["M02.4", "导数和梯度", "变化率、偏导、梯度与链式法则，建立反向传播直觉。", "能解释沿负梯度方向更新参数是什么意思。"],
+          ["M02.5", "优化和泛化", "梯度下降、学习率、训练/验证/测试、过拟合、正则化与早停。", "能根据训练曲线诊断过拟合或欠拟合并提出改进。"]
+        ]
+      },
+      {
+        id: "M03", title: "传统机器学习", duration: "约 5–6 周", phase: "掌握完整建模闭环",
+        goal: "能完成一个具有训练、验证、测试、基线与误差分析的预测项目。",
+        why: "这里第一次把数据、数学、模型和评估合并成完整实验，也是理解深度学习的对照基线。",
+        prereq: "M01 核心数据能力 + M02.1–M02.3", leadsTo: "M04 神经网络基础；P1 学生成绩预测",
+        questions: ["分类概率如何变成类别？", "准确率何时会误导？", "为什么简单模型有时更适合教育数据？", "什么是数据泄漏？"],
+        outputs: ["从零实现线性与逻辑回归核心计算", "用三个模型预测成绩或通过情况", "完成含基线、指标、误差与局限的报告"],
+        units: [
+          ["M03.1", "问题定义与数据切分", "把现实问题定义成输入、标签和指标，并正确划分训练、验证、测试集。", "能说明每个数据子集的用途并避免未来信息泄漏。"],
+          ["M03.2", "线性回归与回归指标", "理解线性关系、参数拟合，以及 MAE、MSE、RMSE、R²。", "能训练回归基线并解释至少两种指标的差异。"],
+          ["M03.3", "逻辑回归与分类指标", "从分数到概率、阈值与类别，理解 Accuracy、Precision、Recall、F1、ROC-AUC。", "能根据教育场景选择指标和阈值。"],
+          ["M03.4", "距离、概率与间隔模型", "最近邻、朴素贝叶斯和支持向量机的基本假设。", "能用直觉比较三类模型适合的数据。"],
+          ["M03.5", "树模型与集成学习", "决策树、随机森林和梯度提升如何分割特征并组合弱模型。", "能解释树的过拟合及集成为何通常更稳。"],
+          ["M03.6", "聚类与降维", "K-means 寻找群组，PCA 用较少维度保留主要变化。", "能解释无监督结果为什么需要谨慎命名与验证。"],
+          ["M03.7", "特征、泄漏与模型选择", "特征工程、交叉验证、超参数、数据泄漏和可解释基线。", "能设计无泄漏的模型比较流程。"]
+        ]
+      },
+      {
+        id: "M04", title: "神经网络基础", duration: "约 6–8 周", phase: "理解学习如何发生",
+        goal: "能解释并实现前向传播、损失、反向传播和梯度下降。",
+        why: "神经网络的核心不是层数，而是可微分计算图如何通过误差信号调整大量参数。",
+        prereq: "M03 + M02.2/M02.4/M02.5", leadsTo: "M05 深度学习架构",
+        questions: ["单个神经元如何计算？", "为什么需要非线性激活？", "反向传播到底传播什么？", "深层网络为什么更难训练？"],
+        outputs: ["手写两层网络前向传播", "用 PyTorch 训练 MLP", "比较学习率、层数和正则化的影响"],
+        units: [
+          ["M04.1", "神经元、权重与偏置", "用加权求和和偏置表示最小计算单元。", "能手算单个神经元并说明每个参数作用。"],
+          ["M04.2", "激活函数与表达能力", "ReLU、Sigmoid 等非线性如何让网络表示复杂关系。", "能说明没有非线性时多层网络为何仍近似线性。"],
+          ["M04.3", "前向传播与损失", "数据逐层变换得到预测，再用均方误差或交叉熵计算错误。", "能追踪一个样本的前向数据流并选对损失。"],
+          ["M04.4", "计算图与反向传播", "利用链式法则计算每个参数对损失的影响。", "能用自己的话解释梯度而不是背公式。"],
+          ["M04.5", "训练循环与超参数", "Batch、Epoch、学习率、初始化和优化器构成训练循环。", "能读懂并修改一个标准训练循环。"],
+          ["M04.6", "正则化与训练稳定", "Dropout、BatchNorm、权重衰减和早停控制泛化与数值稳定。", "能从曲线判断问题并选择对应手段。"],
+          ["M04.7", "PyTorch 基础", "Tensor、自动求导、Dataset、DataLoader、模型与优化器。", "能独立训练、验证并保存一个 MLP。"]
+        ]
+      },
+      {
+        id: "M05", title: "深度学习架构", duration: "约 5–6 周", phase: "理解结构与任务匹配",
+        goal: "能说明 CNN、RNN、注意力和表示学习分别解决什么问题。",
+        why: "网络结构把数据中的先验关系编码进计算过程，理解它才能判断模型为何适合某类任务。",
+        prereq: "M04", leadsTo: "M06 Transformer；P2 知识追踪",
+        questions: ["CNN 为什么适合图像？", "RNN 为什么有长期依赖问题？", "预训练和微调分别学什么？", "表示为何比手工特征灵活？"],
+        outputs: ["训练小型 CNN", "对比传统特征模型与神经网络", "按学生群体或题型分析错误"],
+        units: [
+          ["M05.1", "表示学习与端到端学习", "让模型从数据中学习中间表示，而非完全依赖手工特征。", "能解释表示的作用、收益和风险。"],
+          ["M05.2", "CNN 与局部模式", "卷积、池化、感受野和参数共享如何处理空间结构。", "能画出卷积计算并解释图像适配性。"],
+          ["M05.3", "RNN 与序列记忆", "循环状态如何逐步处理序列，以及梯度问题为何影响长期信息。", "能解释普通 RNN 的信息与梯度路径。"],
+          ["M05.4", "LSTM、GRU 与知识追踪", "门控机制选择保留或遗忘信息，并连接学生作答序列。", "能说明门控如何缓解长期依赖。"],
+          ["M05.5", "Seq2Seq 与编码器—解码器", "将输入序列编码成表示，再按步骤生成输出。", "能画出编码器—解码器的数据流。"],
+          ["M05.6", "Attention、迁移与微调", "用注意力直接连接相关位置，并复用预训练知识适应新任务。", "能说明注意力相对纯循环结构的优势，以及迁移学习流程。"]
+        ]
+      },
+      {
+        id: "M06", title: "Transformer 原理", duration: "约 4–6 周", phase: "拆开现代基础架构",
+        goal: "能逐步解释注意力、Q/K/V、位置编码、残差连接和深度堆叠。",
+        why: "Transformer 是理解 GPT、BERT、多模态模型和现代 Agent 能力边界的结构基础。",
+        prereq: "M05 + M02.2/M02.4", leadsTo: "M07 大语言模型",
+        questions: ["注意力如何判断哪些词相关？", "为什么需要位置编码？", "GPT 与 BERT 的目标有何不同？", "上下文窗口为何受限？"],
+        outputs: ["手算一次小矩阵 Attention", "实现简化 Self-Attention", "画出 Transformer Block 并解释数据流"],
+        units: [
+          ["M06.1", "Token、Embedding 与位置", "把离散 Token 映射为向量，并注入顺序信息。", "能解释相同词向量为何还需要位置信息。"],
+          ["M06.2", "Query、Key、Value 直觉", "把查询需求、可匹配索引和实际内容分开表达。", "能用信息检索类比解释 Q/K/V。"],
+          ["M06.3", "缩放点积注意力", "用相似度、缩放、Softmax 和加权求和得到上下文表示。", "能手算一次完整注意力。"],
+          ["M06.4", "多头注意力", "在多个表示子空间中并行学习不同关系。", "能解释多头不是简单重复同一注意力。"],
+          ["M06.5", "掩码与注意力方向", "因果掩码限制看未来，双向注意力同时利用两侧上下文。", "能区分 GPT 与 BERT 的信息可见范围。"],
+          ["M06.6", "前馈网络", "对每个位置独立进行非线性特征变换。", "能说明注意力与前馈层各自承担的作用。"],
+          ["M06.7", "残差、归一化与深度堆叠", "保留信息通道、稳定数值并让网络可训练得更深。", "能解释残差连接如何帮助梯度传播。"],
+          ["M06.8", "编码器、解码器与组合架构", "比较 Encoder、Decoder、Encoder-Decoder 的输入可见性与任务。", "能为分类、生成、翻译选择架构。"],
+          ["M06.9", "上下文窗口、计算量与 KV Cache", "理解序列长度的计算成本，以及生成时缓存中间结果。", "能解释长上下文为何昂贵、KV Cache 为何加速。"]
+        ]
+      },
+      {
+        id: "M07", title: "大语言模型", duration: "约 5–7 周", phase: "理解能力从何而来",
+        goal: "能解释 GPT 的预训练、指令微调、偏好优化和逐 Token 生成过程。",
+        why: "把架构、数据、训练目标和解码连起来，才能理解大模型为什么能泛化，又为什么会幻觉。",
+        prereq: "M06 + M02.3/M02.5", leadsTo: "M08 生成模型、M09 Agent、M10 AI 系统",
+        questions: ["预测下一个 Token 为什么能做问答？", "预训练、指令微调和偏好优化各改变什么？", "Temperature 如何影响多样性？", "参数为何不是可靠事实数据库？"],
+        outputs: ["比较不同解码参数", "用小型开源模型完成分类或摘要", "测试教育问题的事实性、稳定性和偏见"],
+        units: [
+          ["M07.1", "语言建模与 Next-Token Prediction", "通过预测下一个 Token 学习语言结构、世界规律和任务模式。", "能解释简单目标如何产生广泛能力，同时指出其限制。"],
+          ["M07.2", "交叉熵与困惑度", "度量真实下一个 Token 的概率以及序列预测的不确定性。", "能直观解释两种指标，知道低困惑度不等于事实正确。"],
+          ["M07.3", "预训练数据与数据混合", "理解收集、去重、过滤、配比和质量控制如何塑造模型。", "能指出数据来源带来的能力、偏见和版权风险。"],
+          ["M07.4", "规模定律", "数据量、参数量和算力如何共同影响训练效果与成本。", "能解释扩大规模为何有效但不能解决所有可靠性问题。"],
+          ["M07.5", "指令微调 SFT", "用指令—回答示例把基础模型调整为遵循任务的助手。", "能区分预训练知识与行为格式的变化。"],
+          ["M07.6", "偏好优化：RLHF 与 DPO", "从人类比较数据中学习更符合偏好的回答行为。", "能解释偏好优化改善什么、又可能掩盖什么。"],
+          ["M07.7", "解码策略", "Temperature、Top-k、Top-p 和 Beam Search 如何从概率分布选择输出。", "能根据准确性或创造性需要调整并解释参数。"],
+          ["M07.8", "上下文学习与提示设计", "模型从当前上下文中的指令、示例和结构临时适应任务。", "能设计可评估、可复用、边界明确的提示。"],
+          ["M07.9", "LoRA、量化与高效适配", "用少量可训练参数或更低数值精度降低部署与微调成本。", "能说明 LoRA 和量化分别节省什么、牺牲什么。"],
+          ["M07.10", "幻觉、事实性与知识边界", "理解生成概率、上下文缺失、训练陈旧和评估不足带来的错误。", "能设计核验机制，而不是把流畅度当成可靠性。"]
+        ]
+      },
+      {
+        id: "M08", title: "其他生成模型", duration: "约 3–4 周", phase: "扩展生成范式",
+        goal: "理解扩散、VAE、GAN、多模态与自回归生成的共同点和差异。",
+        why: "文本只是生成建模的一种形式；比较不同生成机制能形成更完整的基础模型认知。",
+        prereq: "M04；建议完成 M07", leadsTo: "多模态教育内容生成与评估",
+        questions: ["文本生成和图像生成有何不同？", "扩散模型为什么先加噪再学去噪？", "多模态如何连接文字、图像和声音？"],
+        outputs: ["比较至少三种生成范式", "分析条件控制、生成质量与可编辑性"],
+        units: [
+          ["M08.1", "自回归生成", "把复杂对象拆成有顺序的局部预测。", "能解释自回归生成的优势、误差累积和速度限制。"],
+          ["M08.2", "Autoencoder 与 VAE", "将输入压缩到潜变量再重建，VAE 让潜空间可采样。", "能说明重建与生成之间的联系。"],
+          ["M08.3", "GAN", "生成器与判别器通过对抗目标共同进步。", "能解释对抗过程、模式崩溃和训练不稳定。"],
+          ["M08.4", "扩散模型", "逐步加噪定义训练任务，再学习反向去噪生成样本。", "能画出前向加噪与反向去噪流程。"],
+          ["M08.5", "多模态模型", "把文字、图像、声音等编码到可对齐或共同处理的表示。", "能解释跨模态对齐和典型输入输出方式。"],
+          ["M08.6", "生成质量、控制与编辑", "从真实性、多样性、条件遵循和可编辑性评价生成系统。", "能为教育生成任务设计不只看观感的评价方案。"]
+        ]
+      },
+      {
+        id: "M09", title: "强化学习、Agent 与工具调用", duration: "约 4–5 周", phase: "从模型到行动系统",
+        goal: "能区分监督学习、强化学习和 Agent，并理解规划、工具、记忆与反馈循环。",
+        why: "模型只产生预测；Agent 把预测嵌入多步行动，能力更强，同时错误累积和安全风险也更高。",
+        prereq: "M03；Agent 部分建议 M07", leadsTo: "M10 系统评估与安全",
+        questions: ["强化学习为什么需要奖励？", "Agent 和聊天机器人有什么区别？", "工具调用为什么不自动保证正确？"],
+        outputs: ["比较监督学习与强化学习流程", "设计一个带工具和校验的教育 Agent", "分析多步任务错误累积"],
+        units: [
+          ["M09.1", "状态、动作、奖励与策略", "用交互轨迹描述智能体如何选择行动并得到反馈。", "能把一个决策问题写成状态、动作和奖励。"],
+          ["M09.2", "价值函数与探索利用", "估计长期回报，并平衡尝试新行为与使用已知好行为。", "能解释短期奖励和长期价值的区别。"],
+          ["M09.3", "Q-learning 直觉", "通过行动后的回报更新状态—动作价值估计。", "能手工追踪一个小型 Q 值更新。"],
+          ["M09.4", "策略优化直觉", "直接调整产生动作的策略，使高回报行为更可能发生。", "能比较价值学习与策略学习。"],
+          ["M09.5", "Agent 规划、记忆与反馈", "将目标分解为步骤，维护上下文，并根据结果修正计划。", "能画出一个 Agent 的观察—思考—行动—反馈循环。"],
+          ["M09.6", "函数调用与外部工具", "让模型以结构化参数调用代码、搜索、数据库等能力。", "能说明参数校验、权限控制与结果核验。"],
+          ["M09.7", "多步错误与系统边界", "单步小错误在规划链中累积，工具返回也可能不可靠。", "能为关键步骤加入检查点、回退和人工确认。"]
+        ]
+      },
+      {
+        id: "M10", title: "AI 系统、评估、安全与伦理", duration: "约 4–6 周", phase: "建立可靠性边界",
+        goal: "能设计可靠评估，识别模型与系统风险，并理解 RAG 等组合系统。",
+        why: "真实应用的表现由模型、提示、数据、检索、工具和人共同决定，不能只看单一模型分数。",
+        prereq: "M07；Agent 评估需 M09", leadsTo: "M11 教育 AI 与研究方法；P3 课程材料 RAG",
+        questions: ["RAG 能解决什么、不能解决什么？", "模型评估和应用效果评估为何要分开？", "教育 AI 上线前至少测什么？"],
+        outputs: ["构建课程材料 RAG 原型", "设计事实性、引用、拒答和公平性测试", "编写教育 AI 风险评估表"],
+        units: [
+          ["M10.1", "RAG 工作链路", "文档切分、Embedding、检索、重排、提示组装与生成。", "能画出完整链路并定位每类错误可能发生的位置。"],
+          ["M10.2", "向量数据库与相似度", "存储向量并按语义近似程度检索候选内容。", "能解释相似不等于相关、更不等于正确。"],
+          ["M10.3", "Prompt、模型、检索与工具组合", "将多个组件组织成可观察、可替换的系统。", "能定义组件接口、失败处理和记录。"],
+          ["M10.4", "离线、在线与人工评估", "用固定集、真实使用数据和人工判断回答不同层次问题。", "能为一个教育应用组合三类评估证据。"],
+          ["M10.5", "可靠性与工程指标", "准确性、鲁棒性、校准、延迟、成本和可解释性之间存在权衡。", "能为场景确定核心指标、底线和权衡。"],
+          ["M10.6", "隐私、版权、偏见与对齐", "理解数据使用、群体差异、内容权利和行为约束。", "能识别一项教育 AI 方案的主要治理风险。"],
+          ["M10.7", "攻击面与安全测试", "红队、提示注入、越权工具调用和数据投毒。", "能设计基本攻击测试并给出隔离和最小权限措施。"],
+          ["M10.8", "教育场景伦理", "知情同意、学生画像、自动决策、申诉、教师责任与可审计性。", "能写出包含受影响群体和补救机制的风险清单。"]
+        ]
+      },
+      {
+        id: "M11", title: "教育 AI 与研究方法", duration: "持续学习", phase: "形成研究与实践能力",
+        goal: "能把教育问题转化为可研究、可评估、合伦理的 AI 项目。",
+        why: "最终目标不是做出一个模型，而是回答教育问题并产生可信、有价值、对学习者负责的证据。",
+        prereq: "M03 提供研究基线；M07/M10 支持生成式 AI 研究", leadsTo: "P2、P3、P4 与博士申请作品集",
+        questions: ["技术指标如何连接教育效果？", "什么证据可以支持因果结论？", "信度、效度、公平性如何进入研究设计？"],
+        outputs: ["学生表现预测项目", "知识追踪项目", "带人工量表的教育 RAG 项目", "完整研究计划"],
+        units: [
+          ["M11.1", "Learning Analytics", "分析学习过程数据，为理解和优化学习提供证据。", "能区分描述、预测、干预与决策目的。"],
+          ["M11.2", "Educational Data Mining", "用数据挖掘方法发现学习行为模式并验证模型。", "能把教育问题转化为变量、任务和评价。"],
+          ["M11.3", "知识追踪：BKT 与 DKT", "根据作答序列估计知识掌握状态及其变化。", "能解释模型假设、输出含义和常见评价风险。"],
+          ["M11.4", "智能辅导、评分、反馈与推荐", "理解典型教育 AI 功能及其对教师和学生工作流的影响。", "能为一种功能定义学习目标与失败后果。"],
+          ["M11.5", "教育测量：信度与效度", "判断测量是否稳定、是否真正测到声称的构念，并认识项目反应理论。", "能区分模型准确与测量有效。"],
+          ["M11.6", "实验、准实验与因果推断", "比较随机实验、观察研究、控制变量与反事实思维。", "能判断一个结论是相关、预测还是因果。"],
+          ["M11.7", "混合研究与人机交互", "结合量化与质性证据，研究动机、认知负荷和教师工作流。", "能设计同时观察结果和过程的研究。"],
+          ["M11.8", "研究计划、伦理与复现", "整合问题、假设、数据、方法、伦理、局限与可复现步骤。", "能完成一份可审查的教育 AI 研究计划。"]
+        ]
+      }
+    ].map(module => ({...module, units: module.units.map(([id, title, summary, criterion]) => ({id, title, summary, criterion}))}));
+
+    const projects = [
+      {id:"P1", title:"学生成绩预测", depends:["M03"], focus:"回归、分类、指标", question:"哪些学习行为与成绩相关？", output:"实验报告", checks:["研究问题与数据来源", "无泄漏基线与模型比较", "指标、错误案例与局限", "伦理与复现步骤"]},
+      {id:"P2", title:"知识追踪", depends:["M05","M11"], focus:"BKT / DKT、序列模型", question:"学生掌握了哪些知识点？", output:"可视化分析", checks:["知识状态定义", "序列数据与基线", "群体与题型误差分析", "教育解释边界"]},
+      {id:"P3", title:"课程材料 RAG", depends:["M07","M10"], focus:"Embedding、检索、生成", question:"如何基于课程材料提供辅导？", output:"原型与评估集", checks:["可追溯课程语料", "检索与生成分项评估", "引用、拒答和注入测试", "隐私与教师审核"]},
+      {id:"P4", title:"AI 反馈研究", depends:["M10","M11"], focus:"LLM、人工评价、实验设计", question:"AI 反馈是否改善学习？", output:"研究计划或论文初稿", checks:["明确学习结果与机制", "对照、样本和分析计划", "人工评分量表", "公平、依赖和知情同意"]}
+    ];
+
+    const atomTopics = {
+      "M00.1":"人工智能的边界|机器学习的包含关系|深度学习的角色|生成式 AI 与大语言模型",
+      "M00.2":"显式规则与知识表示|搜索与逻辑推理|从数据学习规律|两类方法的组合",
+      "M00.3":"监督学习的标签|无监督学习的结构|自监督学习的目标构造|强化学习的奖励",
+      "M00.4":"任务与成功标准|数据与可计算表示|模型、损失与优化|泛化评估|部署监控与反馈",
+      "M00.5":"训练时参数更新|推理时固定参数|概率生成与幻觉|能力边界与核验",
+      "M01.1":"变量与数据类型|条件与循环|函数与参数|模块与导入",
+      "M01.2":"Notebook 单元与内核|命令行与工作目录|绝对路径与相对路径|输入输出文件组织",
+      "M01.3":"数组、形状与维度|索引与切片|广播与向量化|矩阵乘法",
+      "M01.4":"DataFrame 行列语义|缺失值处理|异常值与重复值|类型转换与清洗流水线",
+      "M01.5":"分布图|变量关系图|类别比较图|图表选择与误导",
+      "M01.6":"Git 提交与版本|虚拟环境与依赖|随机种子|实验参数与结果记录",
+      "M02.1":"变量与函数|坐标和斜率|一次与二次函数|指数与对数",
+      "M02.2":"向量与维度|内积与相似度|距离|矩阵乘法|线性变换与 Embedding",
+      "M02.3":"概率与条件概率|随机变量与分布|均值、方差与标准差|抽样、偏差与置信区间|相关、因果与最大似然",
+      "M02.4":"导数与变化率|偏导数|梯度向量|链式法则|负梯度更新",
+      "M02.5":"批量与随机梯度下降|学习率|训练验证测试误差|过拟合与欠拟合|正则化、早停与增强",
+      "M03.1":"预测对象与分析单位|特征和标签|训练验证测试划分|时间切分与群组切分|评价指标预注册",
+      "M03.2":"线性模型假设|参数与残差|最小二乘|MAE、MSE 与 RMSE|R² 与基线",
+      "M03.3":"Logit 与 Sigmoid|概率、阈值与类别|混淆矩阵|Precision、Recall 与 F1|ROC-AUC 与类别不平衡",
+      "M03.4":"KNN 与距离|朴素贝叶斯与条件独立|支持向量机与最大间隔|核方法直觉",
+      "M03.5":"决策树分裂|树深与过拟合|Bagging 与随机森林|Boosting 与残差拟合|特征重要性边界",
+      "M03.6":"K-means 目标|簇数与初始化|PCA 主方向|降维的信息损失|无监督结果验证",
+      "M03.7":"特征编码与缩放|数据泄漏|交叉验证|超参数搜索|基线、解释与模型选择",
+      "M04.1":"输入与加权求和|权重|偏置|神经元输出",
+      "M04.2":"线性叠加的限制|Sigmoid 与 Tanh|ReLU|激活函数选择与梯度",
+      "M04.3":"层与张量形状|前向数据流|均方误差|交叉熵|从预测到损失",
+      "M04.4":"计算图|局部导数|链式法则|梯度反向累积|反向传播与优化器",
+      "M04.5":"Batch 与 Mini-batch|Epoch 与迭代|学习率|参数初始化|标准训练循环",
+      "M04.6":"权重衰减|Dropout|BatchNorm|早停|训练曲线诊断",
+      "M04.7":"Tensor 与设备|自动求导|Dataset 与 DataLoader|Module 与前向函数|优化器、验证与保存",
+      "M05.1":"手工特征与学习表示|隐空间|端到端目标|表示迁移|表示偏差",
+      "M05.2":"卷积核|参数共享|特征图|池化|感受野",
+      "M05.3":"循环状态|时间展开|序列输出|梯度消失与爆炸|长期依赖",
+      "M05.4":"遗忘门|输入门|输出门|GRU 简化|作答序列与知识状态",
+      "M05.5":"编码器状态|解码器生成|Teacher Forcing|序列瓶颈|输入输出对齐",
+      "M05.6":"注意力对齐|长距离依赖|预训练任务|迁移学习|全量与参数高效微调",
+      "M06.1":"Token 与词表|Token ID|Embedding 查表|位置编码|向量相加与序列表示",
+      "M06.2":"Query 表示查询需求|Key 表示可匹配索引|Value 表示实际内容|QKV 线性投影",
+      "M06.3":"QK 点积|缩放因子|Softmax 权重|Value 加权求和|注意力矩阵形状",
+      "M06.4":"头的拆分|并行关系子空间|多头拼接|输出投影|头数与维度约束",
+      "M06.5":"因果掩码|未来信息泄漏|双向注意力|Padding Mask|GPT 与 BERT 可见范围",
+      "M06.6":"逐位置变换|升维与降维|非线性激活|注意力与 FFN 分工",
+      "M06.7":"残差路径|LayerNorm|Pre-Norm 与 Post-Norm|梯度流|Block 深度堆叠",
+      "M06.8":"Encoder-only|Decoder-only|Encoder-Decoder|分类、生成与翻译任务匹配",
+      "M06.9":"二次注意力成本|上下文窗口|KV Cache 内容|自回归生成加速|显存与延迟权衡",
+      "M07.1":"因果语言建模|上下文到概率分布|Next-Token 训练样本|逐 Token 生成|涌现能力与目标限制",
+      "M07.2":"真实 Token 概率|负对数似然|交叉熵|困惑度|指标与事实性的区别",
+      "M07.3":"数据来源与许可|去重|质量过滤|数据配比|污染、偏见与版权",
+      "M07.4":"参数量|数据量|训练算力|规模最优配比|规模收益与边界",
+      "M07.5":"指令—回答数据|监督微调目标|格式与任务遵循|知识变化边界|SFT 数据质量",
+      "M07.6":"偏好比较数据|奖励模型与 RLHF|DPO 直接偏好优化|有用、诚实与无害|奖励投机与表面服从",
+      "M07.7":"Logits 与概率|Temperature|Top-k|Top-p|Beam Search 与任务匹配",
+      "M07.8":"上下文内示例|零样本与少样本|指令结构|输出约束|提示评估与版本化",
+      "M07.9":"低秩适配 LoRA|可训练参数冻结|量化位宽|精度、显存与速度|适配方案选择",
+      "M07.10":"概率生成的不确定性|训练知识陈旧|上下文冲突与缺失|幻觉类型|检索、引用与人工核验",
+      "M08.1":"序列分解|条件概率链|采样顺序|暴露偏差|生成速度与误差累积",
+      "M08.2":"编码器与潜变量|解码与重建|重建损失|VAE 分布约束|潜空间采样",
+      "M08.3":"生成器|判别器|对抗目标|训练不稳定|模式崩溃",
+      "M08.4":"前向加噪|噪声时间步|反向去噪|条件引导|采样步数与质量",
+      "M08.5":"模态编码器|共同表示空间|跨模态对齐|融合与生成|模态缺失与偏差",
+      "M08.6":"真实性|多样性|条件遵循|可编辑性|自动指标与人工评价",
+      "M09.1":"状态|动作|奖励|策略|轨迹与回报",
+      "M09.2":"状态价值|动作价值|折扣回报|探索与利用|信用分配",
+      "M09.3":"Q 表|Bellman 更新|学习率与折扣因子|探索策略|收敛直觉",
+      "M09.4":"参数化策略|期望回报|策略梯度|优势函数|方差与稳定性",
+      "M09.5":"目标分解|计划|短期与长期记忆|观察—行动循环|反思与重规划",
+      "M09.6":"工具描述与选择|结构化参数|参数校验|权限与沙箱|结果核验",
+      "M09.7":"单步错误累积|检查点|重试与回退|人工确认|可观察性与审计",
+      "M10.1":"文档切分|Embedding|候选检索|重排|提示组装与引用生成",
+      "M10.2":"向量索引|余弦相似度|Top-k 召回|元数据过滤|相似、相关与正确",
+      "M10.3":"组件边界|Prompt 模板|模型路由|检索与工具编排|日志与失败处理",
+      "M10.4":"离线固定集|在线行为指标|人工评分量表|盲评与一致性|模型效果与应用效果",
+      "M10.5":"准确性|鲁棒性|校准|延迟与成本|可解释性与权衡",
+      "M10.6":"数据隐私|版权与许可|群体偏见|对齐目标|可审计治理",
+      "M10.7":"红队测试|提示注入|越权工具调用|数据投毒|隔离与最小权限",
+      "M10.8":"知情同意|学生画像|自动决策|申诉与人工复核|教师责任与数据治理",
+      "M11.1":"学习过程数据|描述性分析|预测分析|干预与决策|学习者权益",
+      "M11.2":"教育问题操作化|模式发现|预测任务|模型验证|教育解释边界",
+      "M11.3":"知识状态|BKT 参数与更新|DKT 序列表示|下一题预测|掌握度解释与评价",
+      "M11.4":"智能辅导系统|自动评分|反馈生成|资源推荐|教师与学生工作流",
+      "M11.5":"测量构念|信度|效度|项目难度与区分度|项目反应理论直觉",
+      "M11.6":"随机实验|准实验|混杂变量|反事实与因果图|效应量与异质性",
+      "M11.7":"量化与质性整合|访谈与观察|人机交互|学习动机与认知负荷|教师工作流",
+      "M11.8":"研究问题与假设|数据与分析计划|伦理审查|局限与可推广性|开放材料与复现"
+    };
+
+    function getAtoms(module, unit) {
+      const topics = (atomTopics[unit.id] || `${unit.title}的核心含义|输入、过程与输出|最小练习与常见误区`).split("|");
+      return topics.map((title, index) => {
+        const id = `${unit.id}.${index + 1}`;
+        const override = state?.overrides?.[id] || {};
+        return {
+          id, title, moduleId: module.id, moduleTitle: module.title, unitId: unit.id, unitTitle: unit.title,
+          summary: `聚焦“${title}”在“${unit.title}”中的含义、作用、与前后概念的关系，以及它在真实 AI 系统中的表现。`,
+          criterion: `能用自己的话准确解释“${title}”，举出一个例子，说明一个常见误区，并完成与它有关的最小判断、计算或操作。`,
+          sequence: index + 1,
+          ...override
+        };
+      });
+    }
+
+    function allAtoms() {
+      return curriculum.flatMap(module => getUnits(module).flatMap(unit => getAtoms(module, unit)));
+    }
+
+    function getAtom(atomId) {
+      for (const module of curriculum) {
+        for (const unit of getUnits(module)) {
+          const atom = getAtoms(module, unit).find(item => item.id === atomId);
+          if (atom) return {atom, unit, module};
+        }
+      }
+      return null;
+    }
+
+    const moduleEdges = [
+      ["M00","M01","main"], ["M00","M02","parallel"], ["M01","M03","main"], ["M02","M03","parallel"],
+      ["M03","M04","main"], ["M04","M05","main"], ["M05","M06","main"], ["M06","M07","main"],
+      ["M07","M08","parallel"], ["M07","M09","main"], ["M07","M10","main"], ["M09","M10","main"], ["M10","M11","main"]
+    ];
+
+    const defaultState = () => ({
+      schemaVersion: 2,
+      statuses: {},
+      notes: {},
+      projectStatuses: {},
+      projectNotes: {},
+      overrides: {},
+      customUnits: {},
+      history: [],
+      selectedId: "M00",
+      selectedUnitId: "M00.1",
+      selectedAtomId: null,
+      mapLevel: "global",
+      editMode: false,
+      updatedAt: new Date().toISOString()
+    });
+
+    let state;
+    state = loadState();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    let currentView = "mapView";
+    let toastTimer;
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return {...defaultState(), ...JSON.parse(raw), schemaVersion: 2};
+        const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (!legacyRaw) return defaultState();
+        return migrateLegacyState(JSON.parse(legacyRaw));
+      } catch (error) {
+        console.warn("无法读取本地状态", error);
+        return defaultState();
+      }
+    }
+
+    function migrateLegacyState(legacy) {
+      const migrated = {...defaultState(), ...legacy, schemaVersion: 2, mapLevel: "global", selectedAtomId: null, statuses: {}, notes: {...(legacy.notes || {})}};
+      for (const module of curriculum) {
+        const custom = legacy.customUnits?.[module.id] || [];
+        for (const unit of [...module.units, ...custom]) {
+          const oldStatus = legacy.statuses?.[unit.id];
+          if (oldStatus) {
+            const topics = (atomTopics[unit.id] || `${unit.title}的核心含义|输入、过程与输出|最小练习与常见误区`).split("|");
+            topics.forEach((_, index) => migrated.statuses[`${unit.id}.${index + 1}`] = oldStatus);
+          }
+          const oldNote = legacy.notes?.[unit.id];
+          if (oldNote && Object.values(oldNote).some(Boolean)) migrated.notes[`${unit.id}.1`] = {...oldNote};
+        }
+      }
+      migrated.history = [{id:`migration-${Date.now()}`, itemId:"系统", message:"已从 v1.0 迁移进度到原子知识点", time:new Date().toISOString()}, ...(legacy.history || [])];
+      return migrated;
+    }
+
+    function saveState() {
+      state.updatedAt = new Date().toISOString();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      updateHeader();
+    }
+
+    function allUnits() {
+      return curriculum.flatMap(module => getUnits(module).map(unit => ({...unit, moduleId: module.id, moduleTitle: module.title})));
+    }
+
+    function getUnits(module) {
+      const custom = state?.customUnits?.[module.id] || [];
+      return [...module.units, ...custom].map(unit => {
+        const override = state?.overrides?.[unit.id] || {};
+        return {...unit, ...override};
+      });
+    }
+
+    function getUnit(unitId) {
+      for (const module of curriculum) {
+        const unit = getUnits(module).find(item => item.id === unitId);
+        if (unit) return {unit, module};
+      }
+      return null;
+    }
+
+    function aggregateStatus(statuses) {
+      if (statuses.length && statuses.every(status => status === "mastered")) return "mastered";
+      if (statuses.includes("review")) return "review";
+      if (statuses.some(status => status !== "not-started")) return "learning";
+      return "not-started";
+    }
+    function getStatus(id) {
+      if (state.statuses[id]) return state.statuses[id];
+      const found = getUnit(id);
+      if (found) return aggregateStatus(getAtoms(found.module, found.unit).map(atom => state.statuses[atom.id] || "not-started"));
+      return "not-started";
+    }
+    function statusOptions(selected) {
+      return Object.entries(STATUS).map(([value, label]) => `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`).join("");
+    }
+    function escapeHtml(value = "") {
+      return String(value).replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
+    }
+    function moduleProgress(module) {
+      const atoms = getUnits(module).flatMap(unit => getAtoms(module, unit));
+      const mastered = atoms.filter(atom => getStatus(atom.id) === "mastered").length;
+      return {mastered, total: atoms.length, percent: atoms.length ? Math.round(mastered / atoms.length * 100) : 0};
+    }
+    function moduleStatus(module) {
+      return aggregateStatus(getUnits(module).flatMap(unit => getAtoms(module, unit)).map(atom => getStatus(atom.id)));
+    }
+    function unitProgress(module, unit) {
+      const atoms = getAtoms(module, unit);
+      const mastered = atoms.filter(atom => getStatus(atom.id) === "mastered").length;
+      return {mastered, total: atoms.length, percent: atoms.length ? Math.round(mastered / atoms.length * 100) : 0};
+    }
+    function nextUnit() {
+      const atoms = allAtoms();
+      return atoms.find(item => getStatus(item.id) === "learning") || atoms.find(item => getStatus(item.id) === "review") || atoms.find(item => getStatus(item.id) === "not-started") || atoms[atoms.length - 1];
+    }
+    function formatDate(iso) {
+      try { return new Intl.DateTimeFormat("zh-CN", {month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", hour12:false}).format(new Date(iso)); }
+      catch { return iso; }
+    }
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+    }
+    function logEvent(id, message) {
+      state.history.unshift({id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()), itemId:id, message, time:new Date().toISOString()});
+      state.history = state.history.slice(0, 300);
+    }
+
+    function updateHeader() {
+      const units = allAtoms();
+      const mastered = units.filter(unit => getStatus(unit.id) === "mastered").length;
+      const learning = units.filter(unit => getStatus(unit.id) === "learning").length;
+      const percent = units.length ? Math.round(mastered / units.length * 100) : 0;
+      document.getElementById("overallPercent").textContent = `${percent}%`;
+      document.getElementById("overallProgress").style.width = `${percent}%`;
+      document.getElementById("overallCounts").textContent = `${mastered} / ${units.length} 个原子知识点已掌握`;
+      document.getElementById("activeCounts").textContent = `${learning} 个正在学习`;
+      const next = nextUnit();
+      if (next) {
+        document.getElementById("nextTitle").textContent = `${next.id} ${next.title}`;
+        document.getElementById("maintenanceNext").textContent = `学习 ${next.id} ${next.title}`;
+      }
+    }
+
+    function setStatus(id, newStatus) {
+      const oldStatus = getStatus(id);
+      if (oldStatus === newStatus) return;
+      const found = getUnit(id);
+      if (found) getAtoms(found.module, found.unit).forEach(atom => state.statuses[atom.id] = newStatus);
+      else state.statuses[id] = newStatus;
+      logEvent(id, `状态：${STATUS[oldStatus]} → ${STATUS[newStatus]}`);
+      saveState();
+      renderAll();
+      showToast(`${id} 已更新为“${STATUS[newStatus]}”`);
+    }
+
+    function positionsForMap(mobile) {
+      if (mobile) {
+        return {
+          M00:[105,45], M01:[25,155], M02:[185,155], M03:[105,270], M04:[105,375], M05:[105,480],
+          M06:[105,585], M07:[105,690], M08:[25,800], M09:[185,800], M10:[105,910], M11:[105,1015],
+          P1:[20,1140], P2:[185,1140], P3:[20,1230], P4:[185,1230]
+        };
+      }
+      return {
+        M00:[36,235], M01:[245,125], M02:[245,345], M03:[455,235], M04:[665,235], M05:[875,235],
+        M06:[1085,125], M07:[1085,345], M08:[1295,40], M09:[1295,210], M10:[1295,380], M11:[1295,550],
+        P1:[455,530], P2:[875,530], P3:[1085,660], P4:[1295,700]
+      };
+    }
+
+    function statusColor(status) {
+      return status === "mastered" ? "var(--green)" : status === "learning" ? "var(--blue)" : status === "review" ? "var(--amber)" : "var(--line)";
+    }
+
+    function renderBreadcrumb() {
+      const host = document.getElementById("mapBreadcrumb");
+      const module = curriculum.find(item => item.id === state.selectedId);
+      const foundUnit = module ? getUnits(module).find(item => item.id === state.selectedUnitId) : null;
+      const parts = [`<button class="crumb" type="button" data-level="global" ${state.mapLevel === "global" ? 'aria-current="page"' : ""}>全局路线</button>`];
+      if (state.mapLevel !== "global" && module) parts.push(`<span>›</span><button class="crumb" type="button" data-level="module" ${state.mapLevel === "module" ? 'aria-current="page"' : ""}>${module.id} ${escapeHtml(module.title)}</button>`);
+      if (state.mapLevel === "unit" && foundUnit) parts.push(`<span>›</span><button class="crumb" type="button" data-level="unit" aria-current="page">${foundUnit.id} ${escapeHtml(foundUnit.title)}</button>`);
+      host.innerHTML = parts.join("");
+      host.querySelectorAll("[data-level]").forEach(button => button.addEventListener("click", () => {
+        if (button.getAttribute("aria-current") === "page") return;
+        state.mapLevel = button.dataset.level;
+        state.selectedAtomId = null;
+        saveState(); renderMap(); renderDetail();
+      }));
+      document.getElementById("mapBackBtn").disabled = state.mapLevel === "global";
+      document.getElementById("mapInstruction").textContent = state.mapLevel === "global" ? "点击模块进入小节图，再点击小节进入原子知识点图" : state.mapLevel === "module" ? "点击任一小节继续查看它的原子知识点" : "这是最小层级；点击原子知识点可学习、记录困惑并更新状态";
+      document.getElementById("mainRelationLabel").lastChild.textContent = state.mapLevel === "global" ? "主线先修" : "组成关系";
+      document.getElementById("sequenceRelationLabel").lastChild.textContent = state.mapLevel === "global" ? "并行学习" : "推荐学习顺序";
+      document.getElementById("projectRelationLabel").style.display = state.mapLevel === "global" ? "inline" : "none";
+    }
+
+    function createDrillNode(ns, {x,y,width,height,id,title,meta,status,kind,selected,root,leaf,onSelect}) {
+      const g = document.createElementNS(ns,"g");
+      g.setAttribute("class", `map-node ${root ? "root-node" : ""} ${leaf ? "leaf-node" : ""} ${selected ? "selected" : ""}`);
+      g.setAttribute("transform", `translate(${x},${y})`);
+      g.setAttribute("role","button"); g.setAttribute("tabindex","0");
+      g.setAttribute("aria-label", `${id} ${title}，${STATUS[status]}`);
+      const safeTitle = title.length > 17 ? title.slice(0,17) + "…" : title;
+      g.innerHTML = `<rect class="node-bg" width="${width}" height="${height}"></rect><circle cx="${width-14}" cy="14" r="5" fill="${statusColor(status)}"></circle><text class="node-kind" x="12" y="17">${escapeHtml(kind)}</text><text class="node-code" x="12" y="35">${escapeHtml(id)}</text><text class="node-title" x="12" y="55">${escapeHtml(safeTitle)}</text><text class="node-meta" x="12" y="73">${escapeHtml(meta)}</text>`;
+      g.addEventListener("click",onSelect);
+      g.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();onSelect();}});
+      return g;
+    }
+
+    function addDrillEdge(ns, layer, from, to, dashed = false) {
+      const path = document.createElementNS(ns,"path");
+      const bend = (from[0] + to[0]) / 2;
+      path.setAttribute("d",`M ${from[0]} ${from[1]} C ${bend} ${from[1]}, ${bend} ${to[1]}, ${to[0]} ${to[1]}`);
+      path.setAttribute("class",`map-edge ${dashed ? "parallel" : ""}`);
+      layer.appendChild(path);
+    }
+
+    function renderModuleMap(svg, module) {
+      const ns="http://www.w3.org/2000/svg", mobile=window.innerWidth<=720, units=getUnits(module);
+      const nodeW=mobile?210:210, nodeH=86;
+      const rows=mobile?units.length:Math.ceil(units.length/3), viewH=Math.max(mobile?rows*115+160:rows*120+180,590);
+      svg.setAttribute("viewBox",mobile?`0 0 360 ${viewH}`:`0 0 1120 ${viewH}`);
+      svg.style.minHeight=`${Math.min(Math.max(viewH,540),1100)}px`;
+      document.querySelector(".map-wrap").style.minHeight=`${Math.min(Math.max(viewH,560),1120)}px`;
+      svg.innerHTML=`<title>${module.id} ${escapeHtml(module.title)}的小节思维导图</title><desc>中心模块向各个小节分支，小节之间按推荐学习顺序连接。</desc>`;
+      const edges=document.createElementNS(ns,"g"), nodes=document.createElementNS(ns,"g");
+      const rootX=mobile?75:28, rootY=mobile?25:viewH/2-nodeH/2;
+      const rootCenter=[rootX+nodeW/2,rootY+nodeH/2];
+      nodes.appendChild(createDrillNode(ns,{x:rootX,y:rootY,width:nodeW,height:nodeH,id:module.id,title:module.title,meta:`${moduleProgress(module).percent}% · ${units.length} 个小节`,status:moduleStatus(module),kind:"当前模块",root:true,onSelect:()=>{state.selectedAtomId=null;saveState();renderDetail();}}));
+      let previousCenter=null;
+      units.forEach((unit,index)=>{
+        const col=mobile?0:index%3, row=mobile?index:Math.floor(index/3);
+        const x=mobile?75:330+col*255, y=mobile?145+row*108:70+row*120;
+        const center=[x+nodeW/2,y+nodeH/2], p=unitProgress(module,unit), status=getStatus(unit.id);
+        addDrillEdge(ns,edges,rootCenter,center,false);
+        if(previousCenter) addDrillEdge(ns,edges,previousCenter,center,true);
+        previousCenter=center;
+        nodes.appendChild(createDrillNode(ns,{x,y,width:nodeW,height:nodeH,id:unit.id,title:unit.title,meta:`${p.mastered}/${p.total} 原子点 · 点击下钻`,status,kind:`第 ${index+1} 小节`,selected:state.selectedUnitId===unit.id,onSelect:()=>enterUnit(module.id,unit.id)}));
+      });
+      svg.append(edges,nodes);
+    }
+
+    function renderUnitMap(svg, module, unit) {
+      const ns="http://www.w3.org/2000/svg", mobile=window.innerWidth<=720, atoms=getAtoms(module,unit);
+      const nodeW=mobile?220:225,nodeH=86,viewH=Math.max(mobile?atoms.length*116+170:atoms.length*104+100,590);
+      svg.setAttribute("viewBox",mobile?`0 0 370 ${viewH}`:`0 0 1050 ${viewH}`);
+      svg.style.minHeight=`${Math.min(Math.max(viewH,540),1000)}px`;
+      document.querySelector(".map-wrap").style.minHeight=`${Math.min(Math.max(viewH,560),1020)}px`;
+      svg.innerHTML=`<title>${unit.id} ${escapeHtml(unit.title)}的原子知识点思维导图</title><desc>小节拆分为按学习顺序排列的最小知识点。</desc>`;
+      const edges=document.createElementNS(ns,"g"),nodes=document.createElementNS(ns,"g");
+      const rootX=mobile?75:35,rootY=mobile?25:viewH/2-nodeH/2,rootCenter=[rootX+nodeW/2,rootY+nodeH/2];
+      const p=unitProgress(module,unit);
+      nodes.appendChild(createDrillNode(ns,{x:rootX,y:rootY,width:nodeW,height:nodeH,id:unit.id,title:unit.title,meta:`${p.mastered}/${p.total} 原子点`,status:getStatus(unit.id),kind:"当前小节",root:true,onSelect:()=>{state.selectedAtomId=null;saveState();renderDetail();}}));
+      let previousCenter=null;
+      atoms.forEach((atom,index)=>{
+        const x=mobile?75:420+(index%2)*300,y=mobile?150+index*108:60+Math.floor(index/2)*118;
+        const center=[x+nodeW/2,y+nodeH/2];
+        addDrillEdge(ns,edges,rootCenter,center,false);
+        if(previousCenter) addDrillEdge(ns,edges,previousCenter,center,true);
+        previousCenter=center;
+        nodes.appendChild(createDrillNode(ns,{x,y,width:nodeW,height:nodeH,id:atom.id,title:atom.title,meta:`步骤 ${index+1}/${atoms.length} · 最小知识点`,status:getStatus(atom.id),kind:"原子知识点",leaf:true,selected:state.selectedAtomId===atom.id,onSelect:()=>selectAtom(atom.id)}));
+      });
+      svg.append(edges,nodes);
+    }
+
+    function enterModule(moduleId) {
+      const module=curriculum.find(item=>item.id===moduleId); if(!module)return;
+      state.selectedId=moduleId; state.mapLevel="module"; state.selectedAtomId=null;
+      if(!getUnits(module).some(unit=>unit.id===state.selectedUnitId)) state.selectedUnitId=getUnits(module)[0]?.id;
+      saveState(); renderMap(); renderDetail();
+    }
+
+    function enterUnit(moduleId,unitId) {
+      state.selectedId=moduleId; state.selectedUnitId=unitId; state.selectedAtomId=null; state.mapLevel="unit";
+      saveState(); renderMap(); renderDetail();
+    }
+
+    function selectAtom(atomId) {
+      const found=getAtom(atomId); if(!found)return;
+      state.selectedId=found.module.id; state.selectedUnitId=found.unit.id; state.selectedAtomId=atomId; state.mapLevel="unit";
+      saveState(); renderMap(); renderDetail();
+      if(window.innerWidth<=1100) document.getElementById("detailPanel").scrollIntoView({behavior:"smooth",block:"start"});
+    }
+
+    function renderMap() {
+      const svg = document.getElementById("learningMap");
+      renderBreadcrumb();
+      const module = curriculum.find(item => item.id === state.selectedId);
+      if (state.mapLevel === "module" && module) { renderModuleMap(svg,module); return; }
+      if (state.mapLevel === "unit" && module) {
+        const unit=getUnits(module).find(item=>item.id===state.selectedUnitId) || getUnits(module)[0];
+        if(unit){renderUnitMap(svg,module,unit);return;}
+      }
+      state.mapLevel="global"; svg.style.minHeight=""; document.querySelector(".map-wrap").style.minHeight="";
+      const mobile = window.innerWidth <= 720;
+      const positions = positionsForMap(mobile);
+      const nodeW = mobile ? 145 : 175;
+      const nodeH = mobile ? 76 : 78;
+      const projectH = 58;
+      svg.setAttribute("viewBox", mobile ? "0 0 355 1310" : "0 0 1505 780");
+      svg.innerHTML = `<title id="mapSvgTitle">AI 系统学习知识依赖地图</title><desc id="mapSvgDesc">从 AI 总览开始，编程和数学并行打底，经过机器学习、神经网络、Transformer 与大语言模型，最后进入系统评估和教育研究。</desc>`;
+      const ns = "http://www.w3.org/2000/svg";
+      const layerEdges = document.createElementNS(ns, "g");
+      const layerNodes = document.createElementNS(ns, "g");
+
+      function center(id, isProject = false) {
+        const [x,y] = positions[id];
+        return [x + nodeW / 2, y + (isProject ? projectH : nodeH) / 2];
+      }
+      function edge(from, to, type = "main", isProject = false) {
+        const [x1,y1] = center(from);
+        const [x2,y2] = center(to, isProject);
+        const path = document.createElementNS(ns, "path");
+        let d;
+        if (mobile) {
+          const bend = (y1 + y2) / 2;
+          d = `M ${x1} ${y1} C ${x1} ${bend}, ${x2} ${bend}, ${x2} ${y2}`;
+        } else {
+          const bend = (x1 + x2) / 2;
+          d = `M ${x1} ${y1} C ${bend} ${y1}, ${bend} ${y2}, ${x2} ${y2}`;
+        }
+        path.setAttribute("d", d);
+        path.setAttribute("class", `map-edge ${type === "main" ? "" : type}`);
+        layerEdges.appendChild(path);
+      }
+      moduleEdges.forEach(([from,to,type]) => edge(from,to,type));
+      projects.forEach(project => project.depends.forEach(dep => edge(dep, project.id, "project", true)));
+
+      const stageLabels = mobile ? [] : [
+        [36,22,"① 全局"], [245,22,"② 双基础并行"], [455,196,"③ 建模主线"], [1085,22,"④ 基础模型"], [1295,22,"⑤ 系统与研究"]
+      ];
+      stageLabels.forEach(([x,y,label]) => {
+        const text = document.createElementNS(ns,"text");
+        text.setAttribute("x",x); text.setAttribute("y",y); text.setAttribute("class","map-stage-label"); text.textContent = label; layerNodes.appendChild(text);
+      });
+
+      curriculum.forEach(module => {
+        const [x,y] = positions[module.id];
+        const progress = moduleProgress(module);
+        const status = moduleStatus(module);
+        const g = document.createElementNS(ns,"g");
+        g.setAttribute("class", `map-node ${state.selectedId === module.id ? "selected" : ""}`);
+        g.setAttribute("transform", `translate(${x},${y})`);
+        g.setAttribute("role","button");
+        g.setAttribute("tabindex","0");
+        g.setAttribute("aria-label", `${module.id} ${module.title}，已掌握 ${progress.percent}%`);
+        const dotColor = status === "mastered" ? "var(--green)" : status === "learning" ? "var(--blue)" : status === "review" ? "var(--amber)" : "var(--line)";
+        const displayTitle = module.title.length > 12 ? module.title.slice(0,12) + "…" : module.title;
+        g.innerHTML = `
+          <rect class="node-bg" width="${nodeW}" height="${nodeH}"></rect>
+          <circle cx="${nodeW - 14}" cy="14" r="5" fill="${dotColor}"></circle>
+          <text class="node-code" x="12" y="20">${module.id}</text>
+          <text class="node-title" x="12" y="42">${escapeHtml(displayTitle)}</text>
+          <text class="node-meta" x="12" y="59">${progress.mastered}/${progress.total} · ${escapeHtml(module.duration)}</text>
+          <rect class="node-track" x="12" y="${nodeH-9}" width="${nodeW-24}" height="4" rx="2"></rect>
+          <rect class="node-fill" x="12" y="${nodeH-9}" width="${(nodeW-24)*progress.percent/100}" height="4" rx="2"></rect>`;
+        const select = () => enterModule(module.id);
+        g.addEventListener("click", select);
+        g.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); } });
+        layerNodes.appendChild(g);
+      });
+
+      projects.forEach(project => {
+        const [x,y] = positions[project.id];
+        const status = state.projectStatuses[project.id] || "not-started";
+        const g = document.createElementNS(ns,"g");
+        g.setAttribute("class", `map-node project-node ${state.selectedId === project.id ? "selected" : ""}`);
+        g.setAttribute("transform", `translate(${x},${y})`);
+        g.setAttribute("role","button"); g.setAttribute("tabindex","0"); g.setAttribute("aria-label", `${project.id} ${project.title}，${STATUS[status]}`);
+        g.innerHTML = `<rect class="node-bg" width="${nodeW}" height="${projectH}"></rect><text class="node-code" x="12" y="20">${project.id} · 项目验收</text><text class="node-title" x="12" y="42">${escapeHtml(project.title)}</text>`;
+        const select = () => selectItem(project.id);
+        g.addEventListener("click", select); g.addEventListener("keydown", event => { if(event.key === "Enter" || event.key === " "){event.preventDefault();select();} });
+        layerNodes.appendChild(g);
+      });
+      svg.append(layerEdges, layerNodes);
+    }
+
+    function selectItem(id) {
+      state.selectedId = id;
+      state.selectedAtomId = null;
+      if (id.startsWith("P")) state.mapLevel = "global";
+      if (id.startsWith("M")) {
+        const module = curriculum.find(item => item.id === id);
+        const units = getUnits(module);
+        if (!units.some(unit => unit.id === state.selectedUnitId)) state.selectedUnitId = units[0]?.id;
+      }
+      saveState();
+      renderMap();
+      renderDetail();
+      if (window.innerWidth <= 1100) document.getElementById("detailPanel").scrollIntoView({behavior:"smooth", block:"start"});
+    }
+
+    function renderDetail() {
+      const host = document.getElementById("detailContent");
+      if (state.selectedAtomId) {
+        const foundAtom=getAtom(state.selectedAtomId);
+        if(foundAtom){renderAtomDetail(host,foundAtom);return;}
+      }
+      const project = projects.find(item => item.id === state.selectedId);
+      if (project) {
+        renderProjectDetail(host, project);
+        return;
+      }
+      const module = curriculum.find(item => item.id === state.selectedId) || curriculum[0];
+      state.selectedId = module.id;
+      const units = getUnits(module);
+      const progress = moduleProgress(module);
+      let selected = units.find(unit => unit.id === state.selectedUnitId) || units[0];
+      if (selected) state.selectedUnitId = selected.id;
+      if(state.mapLevel === "unit" && selected){renderUnitOverview(host,module,selected);return;}
+      host.innerHTML = `
+        <span class="detail-level">第 2 层：模块</span><div class="detail-code">${module.id} · ${escapeHtml(module.phase)}</div>
+        <h2 class="detail-title">${escapeHtml(module.title)}</h2>
+        <p class="detail-sub">${escapeHtml(module.goal)}</p>
+        <div class="mini-progress"><div class="progress-track"><div class="progress-fill" style="width:${progress.percent}%"></div></div><strong>${progress.percent}%</strong><span class="detail-sub">${progress.mastered} / ${progress.total} 个知识点已掌握 · ${escapeHtml(module.duration)}</span></div>
+        <div class="logic-box"><div class="logic-row"><span class="logic-label">为什么在这里：</span>${escapeHtml(module.why)}</div><div class="logic-row"><span class="logic-label">先修：</span>${escapeHtml(module.prereq)}</div><div class="logic-row"><span class="logic-label">学完进入：</span>${escapeHtml(module.leadsTo)}</div></div>
+        <div class="section-label">下一级：小节</div>
+        <div class="unit-list">${units.map(unit => unitRowHtml(unit)).join("")}</div>
+        <div class="workspace-actions"><button class="btn primary" id="drillSelectedUnitBtn" type="button">展开所选小节思维导图</button></div>
+        ${state.editMode ? `<div class="edit-fields"><button class="btn" id="addUnitBtn" type="button">向 ${module.id} 添加自定义知识点</button></div>` : ""}
+        <details><summary class="section-label" style="cursor:pointer">模块验收问题与产出</summary><div class="logic-box"><strong>必须能回答</strong><ul>${module.questions.map(q=>`<li>${escapeHtml(q)}</li>`).join("")}</ul><strong>练习与产出</strong><ul>${module.outputs.map(o=>`<li>${escapeHtml(o)}</li>`).join("")}</ul></div></details>`;
+      bindDetailEvents(module, selected);
+    }
+
+    function renderUnitOverview(host,module,unit) {
+      const atoms=getAtoms(module,unit), progress=unitProgress(module,unit);
+      host.innerHTML=`<span class="detail-level">第 3 层：小节</span><div class="detail-code">${module.id} ${escapeHtml(module.title)} › ${unit.id}</div><h2 class="detail-title">${escapeHtml(unit.title)}</h2><p class="detail-sub">${escapeHtml(unit.summary)}</p>
+        <div class="mini-progress"><div class="progress-track"><div class="progress-fill" style="width:${progress.percent}%"></div></div><strong>${progress.percent}%</strong><span class="detail-sub">${progress.mastered} / ${progress.total} 个原子知识点已掌握</span></div>
+        <p class="criterion"><strong>小节通过标准：</strong>${escapeHtml(unit.criterion)}</p>
+        <div class="logic-box"><div class="logic-row"><span class="logic-label">学习逻辑：</span>按图中虚线顺序逐个掌握原子点；它们共同组成这个小节，任何一个薄弱点都会反映到小节状态。</div><div class="logic-row"><span class="logic-label">所属模块：</span>${module.id} ${escapeHtml(module.title)}</div></div>
+        <div class="section-label">下一级：原子知识点</div><div class="child-preview">${atoms.map((atom,index)=>{const status=getStatus(atom.id);return `<div class="child-preview-row"><button class="unit-select-btn" data-atom-preview="${atom.id}" type="button"><span class="unit-id">${atom.id} · 步骤 ${index+1}</span><strong>${escapeHtml(atom.title)}</strong></button><select class="status-select" data-status="${status}" data-atom-status="${atom.id}" aria-label="${atom.id} 状态">${statusOptions(status)}</select></div>`}).join("")}</div>
+        <div class="edit-fields"><label class="field-label">小节标题<input class="field" id="editUnitTitle" value="${escapeHtml(unit.title)}"></label><label class="field-label">小节说明<textarea class="field" id="editUnitSummary">${escapeHtml(unit.summary)}</textarea></label><label class="field-label">小节通过标准<textarea class="field" id="editUnitCriterion">${escapeHtml(unit.criterion)}</textarea></label><div class="workspace-actions"><button class="btn" id="saveUnitContentBtn" type="button">保存小节修改</button>${unit.custom?`<button class="btn danger" id="deleteCustomUnitBtn" type="button">删除自定义小节</button>`:""}</div></div>`;
+      host.querySelectorAll("[data-atom-preview]").forEach(button=>button.addEventListener("click",()=>selectAtom(button.dataset.atomPreview)));
+      host.querySelectorAll("[data-atom-status]").forEach(select=>select.addEventListener("change",()=>setStatus(select.dataset.atomStatus,select.value)));
+      if(state.editMode){
+        document.getElementById("saveUnitContentBtn").addEventListener("click",()=>{state.overrides[unit.id]={title:document.getElementById("editUnitTitle").value.trim()||unit.title,summary:document.getElementById("editUnitSummary").value.trim()||unit.summary,criterion:document.getElementById("editUnitCriterion").value.trim()||unit.criterion};logEvent(unit.id,"修改了小节内容");saveState();renderAll();showToast("小节内容已保存");});
+        const deleteButton=document.getElementById("deleteCustomUnitBtn");if(deleteButton)deleteButton.addEventListener("click",()=>deleteCustomUnit(module,unit));
+      }
+    }
+
+    function renderAtomDetail(host,{atom,unit,module}) {
+      const atoms=getAtoms(module,unit), index=atoms.findIndex(item=>item.id===atom.id), notes=state.notes[atom.id]||{};
+      const previous=atoms[index-1], next=atoms[index+1], status=getStatus(atom.id);
+      host.innerHTML=`<span class="detail-level">第 4 层：原子知识点（最小层级）</span><div class="detail-code">${module.id} › ${unit.id} › ${atom.id}</div><h2 class="detail-title">${escapeHtml(atom.title)}</h2>
+        <p class="atom-context">所属小节：${escapeHtml(unit.title)} · 学习顺序 ${index+1}/${atoms.length}</p><p class="detail-sub">${escapeHtml(atom.summary)}</p>
+        <p class="criterion"><strong>原子点通过标准：</strong>${escapeHtml(atom.criterion)}</p>
+        <div class="field-group"><label class="field-label">学习状态<select class="status-select" id="atomStatus" data-status="${status}">${statusOptions(status)}</select></label></div>
+        <div class="field-group"><label class="field-label" for="understoodNote">我已经理解的内容</label><textarea class="field" id="understoodNote" placeholder="用自己的话写出这个最小概念">${escapeHtml(notes.understood||"")}</textarea></div>
+        <div class="field-group"><label class="field-label" for="questionNote">仍然不懂 / 容易混淆的地方</label><textarea class="field" id="questionNote" placeholder="具体写出卡住的词、关系、公式或例子">${escapeHtml(notes.question||"")}</textarea></div>
+        <div class="field-group"><label class="field-label" for="evidenceNote">练习、测验或掌握证据</label><textarea class="field" id="evidenceNote" placeholder="记录自己的解释、计算、代码或检查题结果">${escapeHtml(notes.evidence||"")}</textarea></div>
+        <div class="workspace-actions"><button class="btn primary" id="masterBtn" type="button">确认已掌握</button><button class="btn" id="startBtn" type="button">标记学习中</button><button class="btn" id="copyLearnBtn" type="button">复制原子点学习指令</button></div>
+        <div class="workspace-actions">${previous?`<button class="btn small" data-atom-nav="${previous.id}" type="button">上一个：${escapeHtml(previous.title)}</button>`:""}${next?`<button class="btn small" data-atom-nav="${next.id}" type="button">下一个：${escapeHtml(next.title)}</button>`:""}</div><div class="save-hint" id="saveHint">输入后自动保存到本机</div>
+        <div class="edit-fields"><label class="field-label">原子点标题<input class="field" id="editAtomTitle" value="${escapeHtml(atom.title)}"></label><label class="field-label">内容说明<textarea class="field" id="editAtomSummary">${escapeHtml(atom.summary)}</textarea></label><label class="field-label">通过标准<textarea class="field" id="editAtomCriterion">${escapeHtml(atom.criterion)}</textarea></label><button class="btn" id="saveAtomContentBtn" type="button">保存原子点修改</button></div>`;
+      document.getElementById("atomStatus").addEventListener("change",event=>setStatus(atom.id,event.target.value));
+      ["understoodNote","questionNote","evidenceNote"].forEach(id=>document.getElementById(id).addEventListener("input",event=>{const key=id==="understoodNote"?"understood":id==="questionNote"?"question":"evidence";state.notes[atom.id]={...(state.notes[atom.id]||{}),[key]:event.target.value};saveState();document.getElementById("saveHint").textContent="已自动保存";}));
+      document.getElementById("masterBtn").addEventListener("click",()=>setStatus(atom.id,"mastered"));
+      document.getElementById("startBtn").addEventListener("click",()=>setStatus(atom.id,"learning"));
+      document.getElementById("copyLearnBtn").addEventListener("click",()=>copyText(buildAtomicPrompt(atom,unit,module),"原子点学习指令已复制"));
+      host.querySelectorAll("[data-atom-nav]").forEach(button=>button.addEventListener("click",()=>selectAtom(button.dataset.atomNav)));
+      if(state.editMode) document.getElementById("saveAtomContentBtn").addEventListener("click",()=>{state.overrides[atom.id]={title:document.getElementById("editAtomTitle").value.trim()||atom.title,summary:document.getElementById("editAtomSummary").value.trim()||atom.summary,criterion:document.getElementById("editAtomCriterion").value.trim()||atom.criterion};logEvent(atom.id,"修改了原子知识点内容");saveState();renderAll();showToast("原子知识点已保存");});
+    }
+
+    function buildAtomicPrompt(atom,unit,module) {
+      const notes=state.notes[atom.id]||{};
+      return `请只教学原子知识点 ${atom.id}《${atom.title}》。\n所属路径：${module.id} ${module.title} → ${unit.id} ${unit.title} → ${atom.id} ${atom.title}。\n内容范围：${atom.summary}\n通过标准：${atom.criterion}\n我已经理解：${notes.understood||"暂无记录"}\n我仍然困惑：${notes.question||"暂无记录"}\n掌握证据：${notes.evidence||"暂无记录"}\n\n请不要扩展到下一个原子点。按“直观解释 → 一个简单例子 → 必要公式或代码 → 一个常见误区 → 3 个检查问题”教学。根据我的回答判断薄弱点，但不要替我直接标记已掌握。`;
+    }
+
+    function unitRowHtml(unit) {
+      const status = getStatus(unit.id);
+      return `<div class="unit-row ${state.selectedUnitId === unit.id ? "selected" : ""}"><button class="unit-select-btn" type="button" data-unit="${unit.id}"><span class="unit-id">${unit.id}</span><span class="unit-name">${escapeHtml(unit.title)}</span></button><select class="status-select" data-status="${status}" data-status-id="${unit.id}" aria-label="${unit.id} 学习状态">${statusOptions(status)}</select></div>`;
+    }
+
+    function unitWorkspaceHtml(unit, module) {
+      const notes = state.notes[unit.id] || {};
+      const custom = unit.custom === true;
+      return `<div class="unit-workspace">
+        <div class="workspace-title"><h3>${unit.id} ${escapeHtml(unit.title)}</h3><span class="unit-id">${STATUS[getStatus(unit.id)]}</span></div>
+        <p class="unit-summary">${escapeHtml(unit.summary)}</p>
+        <p class="criterion"><strong>通过标准：</strong>${escapeHtml(unit.criterion)}</p>
+        <div class="field-group"><label class="field-label" for="understoodNote">我已经理解的内容</label><textarea class="field" id="understoodNote" placeholder="用自己的话写下来，这本身就是一次理解检查">${escapeHtml(notes.understood || "")}</textarea></div>
+        <div class="field-group"><label class="field-label" for="questionNote">仍然不懂 / 容易混淆的地方</label><textarea class="field" id="questionNote" placeholder="尽量具体，例如：我不明白梯度方向为什么要取负">${escapeHtml(notes.question || "")}</textarea></div>
+        <div class="field-group"><label class="field-label" for="evidenceNote">练习、测验或掌握证据</label><textarea class="field" id="evidenceNote" placeholder="记录代码文件、测验结果、例子或你能独立完成的任务">${escapeHtml(notes.evidence || "")}</textarea></div>
+        <div class="workspace-actions"><button class="btn primary" id="masterBtn" type="button">确认已掌握</button><button class="btn" id="startBtn" type="button">标记学习中</button><button class="btn" id="copyLearnBtn" type="button">复制学习指令</button></div>
+        <div class="save-hint" id="saveHint">输入后自动保存到本机</div>
+        <div class="edit-fields">
+          <label class="field-label">知识点标题<input class="field" id="editUnitTitle" value="${escapeHtml(unit.title)}"></label>
+          <label class="field-label">内容说明<textarea class="field" id="editUnitSummary">${escapeHtml(unit.summary)}</textarea></label>
+          <label class="field-label">通过标准<textarea class="field" id="editUnitCriterion">${escapeHtml(unit.criterion)}</textarea></label>
+          <div class="workspace-actions"><button class="btn" id="saveContentBtn" type="button">保存内容修改</button>${custom ? `<button class="btn danger" id="deleteCustomBtn" type="button">删除这个自定义知识点</button>` : ""}</div>
+        </div>
+      </div>`;
+    }
+
+    function bindDetailEvents(module, selected) {
+      document.querySelectorAll("[data-unit]").forEach(button => button.addEventListener("click", () => { state.selectedUnitId = button.dataset.unit; saveState(); renderDetail(); }));
+      document.querySelectorAll("[data-status-id]").forEach(select => select.addEventListener("change", () => setStatus(select.dataset.statusId, select.value)));
+      if (!selected) return;
+      const drillButton=document.getElementById("drillSelectedUnitBtn");
+      if(drillButton) drillButton.addEventListener("click",()=>enterUnit(module.id,selected.id));
+      if (state.editMode) {
+        const addButton = document.getElementById("addUnitBtn");
+        if (addButton) addButton.addEventListener("click", () => addCustomUnit(module));
+      }
+    }
+
+    function renderProjectDetail(host, project) {
+      const status = state.projectStatuses[project.id] || "not-started";
+      const note = state.projectNotes[project.id] || "";
+      host.innerHTML = `<div class="detail-code">${project.id} · 阶段项目</div><h2 class="detail-title">${escapeHtml(project.title)}</h2><p class="detail-sub">${escapeHtml(project.question)}</p>
+        <div class="logic-box"><div class="logic-row"><span class="logic-label">建议先修：</span>${project.depends.join(" + ")}</div><div class="logic-row"><span class="logic-label">技术重点：</span>${escapeHtml(project.focus)}</div><div class="logic-row"><span class="logic-label">最终产出：</span>${escapeHtml(project.output)}</div></div>
+        <div class="field-group"><label class="field-label">项目状态<select class="status-select" id="projectStatus" data-status="${status}">${statusOptions(status)}</select></label></div>
+        <div class="section-label">验收清单</div><div class="logic-box"><ul>${project.checks.map(item=>`<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
+        <div class="field-group"><label class="field-label" for="projectNote">项目记录、问题与文件位置</label><textarea class="field" id="projectNote" placeholder="记录方案、实验结果、错误案例和下一步">${escapeHtml(note)}</textarea></div>
+        <div class="workspace-actions"><button class="btn" id="copyProjectBtn" type="button">复制项目指导指令</button></div><div class="save-hint" id="saveHint">输入后自动保存到本机</div>`;
+      document.getElementById("projectStatus").addEventListener("change", event => {
+        const old = state.projectStatuses[project.id] || "not-started"; state.projectStatuses[project.id] = event.target.value;
+        logEvent(project.id,`项目状态：${STATUS[old]} → ${STATUS[event.target.value]}`); saveState(); renderAll(); showToast("项目状态已更新");
+      });
+      document.getElementById("projectNote").addEventListener("input", event => { state.projectNotes[project.id] = event.target.value; saveState(); document.getElementById("saveHint").textContent = "已自动保存"; });
+      document.getElementById("copyProjectBtn").addEventListener("click", () => copyText(`请指导我完成 ${project.id} ${project.title}。\n教育问题：${project.question}\n技术重点：${project.focus}\n产出：${project.output}\n请先检查我的先修知识，再按“问题定义—数据—基线—方法—指标—错误分析—伦理—复现”的顺序逐步推进。\n我的当前记录：${state.projectNotes[project.id] || "暂无"}`, "项目指令已复制"));
+    }
+
+    function buildLearningPrompt(unit, module) {
+      const notes = state.notes[unit.id] || {};
+      return `请按我的 AI 学习框架教学 ${unit.id}《${unit.title}》。\n\n它属于 ${module.id} ${module.title}。\n内容：${unit.summary}\n通过标准：${unit.criterion}\n我已经理解：${notes.understood || "暂无记录"}\n我仍然困惑：${notes.question || "暂无记录"}\n已有练习/证据：${notes.evidence || "暂无记录"}\n\n我的数学基础较弱。请严格按“直观解释 → 简单例子 → 必要公式 → 代码或练习 → 3—5 个检查问题”的顺序，每次只推进这个小节。不要替我直接标记已掌握；先根据回答指出错因，并在最后给出状态修改建议和下一步。`;
+    }
+
+    function addCustomUnit(module) {
+      const title = prompt(`为 ${module.id} 添加知识点：请输入标题`);
+      if (!title?.trim()) return;
+      const current = state.customUnits[module.id] || [];
+      const suffix = current.length + 1;
+      const id = `${module.id}.X${suffix}`;
+      const unit = {id, title:title.trim(), summary:"自定义补充内容，请在编辑模式中完善说明。", criterion:"请补充可验证的通过标准。", custom:true};
+      state.customUnits[module.id] = [...current, unit]; state.selectedUnitId = id;
+      logEvent(id,"添加了自定义知识点"); saveState(); renderAll(); showToast(`${id} 已添加`);
+    }
+
+    function deleteCustomUnit(module, unit) {
+      if (!confirm(`确定删除自定义知识点 ${unit.id} 吗？相关记录也会删除。`)) return;
+      state.customUnits[module.id] = (state.customUnits[module.id] || []).filter(item => item.id !== unit.id);
+      delete state.statuses[unit.id]; delete state.notes[unit.id]; delete state.overrides[unit.id];
+      getAtoms(module,unit).forEach(atom=>{delete state.statuses[atom.id];delete state.notes[atom.id];delete state.overrides[atom.id];});
+      state.selectedUnitId = getUnits(module)[0]?.id; logEvent(unit.id,"删除了自定义知识点"); saveState(); renderAll(); showToast("自定义知识点已删除");
+    }
+
+    function renderOutline() {
+      const host = document.getElementById("outlineList");
+      const query = document.getElementById("searchInput").value.trim().toLowerCase();
+      const filter = document.getElementById("statusFilter").value;
+      let matches = 0;
+      host.innerHTML = curriculum.map(module => {
+        const atoms = getUnits(module).flatMap(unit=>getAtoms(module,unit)).filter(atom => {
+          const textMatch = !query || `${atom.id} ${atom.title} ${atom.summary} ${atom.unitTitle} ${module.title}`.toLowerCase().includes(query);
+          const status = getStatus(atom.id);
+          const filterMatch = filter === "all" || filter === status || (filter === "has-question" && (state.notes[atom.id]?.question || "").trim());
+          return textMatch && filterMatch;
+        });
+        if (!atoms.length) return "";
+        matches += atoms.length;
+        const progress = moduleProgress(module);
+        return `<details class="module-block" ${query || filter !== "all" ? "open" : ""}><summary class="module-summary"><span class="module-code">${module.id}</span><span><span class="module-summary-title">${escapeHtml(module.title)}</span><span class="module-summary-meta"> · ${atoms.length} 个原子知识点 · ${escapeHtml(module.phase)}</span></span><span class="module-percent">${progress.percent}%</span><span class="chevron">›</span></summary><div class="outline-units">${atoms.map(atom => { const question = state.notes[atom.id]?.question || ""; const status = getStatus(atom.id); return `<div class="outline-unit"><button class="unit-select-btn outline-open" data-outline-atom="${atom.id}" type="button"><span class="unit-id">${atom.id} · ${escapeHtml(atom.unitTitle)}</span> <span class="outline-unit-title">${escapeHtml(atom.title)}</span></button><span class="outline-unit-note">${question ? `困惑：${escapeHtml(question)}` : ""}</span><select class="status-select" data-status="${status}" data-outline-status="${atom.id}" aria-label="${atom.id} 学习状态">${statusOptions(status)}</select></div>`; }).join("")}</div></details>`;
+      }).join("");
+      if (!matches) host.innerHTML = `<div class="panel outline-empty">没有符合当前条件的知识点。</div>`;
+      document.querySelectorAll("[data-outline-atom]").forEach(button => button.addEventListener("click", () => { switchView("mapView"); selectAtom(button.dataset.outlineAtom); }));
+      document.querySelectorAll("[data-outline-status]").forEach(select => select.addEventListener("change", () => setStatus(select.dataset.outlineStatus, select.value)));
+    }
+
+    function renderHistory() {
+      const host = document.getElementById("historyTable");
+      if (!state.history.length) { host.innerHTML = `<div class="log-empty">还没有状态变更。开始学习并更新知识点后，这里会自动形成记录。</div>`; }
+      else host.innerHTML = `<table class="log-table"><thead><tr><th>时间</th><th>知识点</th><th>变化</th></tr></thead><tbody>${state.history.map(item=>`<tr><td>${formatDate(item.time)}</td><td><strong>${escapeHtml(item.itemId)}</strong></td><td>${escapeHtml(item.message)}</td></tr>`).join("")}</tbody></table>`;
+      const weak = allAtoms().filter(unit => getStatus(unit.id) === "review" || (state.notes[unit.id]?.question || "").trim());
+      const list = document.getElementById("reflectionList");
+      list.innerHTML = weak.length ? weak.map(unit => `<button class="reflection-item unit-select-btn" data-weak-unit="${unit.id}" type="button"><strong>${unit.id} ${escapeHtml(unit.title)}</strong><p>${escapeHtml(state.notes[unit.id]?.question || "已标记为需复习，尚未记录具体困惑。")}</p></button>`).join("") : `<div class="log-empty">目前没有记录薄弱点。</div>`;
+      document.querySelectorAll("[data-weak-unit]").forEach(button => button.addEventListener("click", () => { switchView("mapView"); selectAtom(button.dataset.weakUnit); }));
+    }
+
+    function renderAll() {
+      document.body.classList.toggle("edit-mode", !!state.editMode);
+      const editButton = document.getElementById("editModeBtn");
+      editButton.setAttribute("aria-pressed", String(!!state.editMode));
+      editButton.textContent = state.editMode ? "关闭编辑模式" : "开启编辑模式";
+      updateHeader(); renderMap(); renderDetail(); renderOutline(); renderHistory();
+    }
+
+    function switchView(viewId) {
+      currentView = viewId;
+      document.querySelectorAll(".view").forEach(view => view.hidden = view.id !== viewId);
+      document.querySelectorAll(".tab").forEach(tab => tab.setAttribute("aria-selected", String(tab.dataset.view === viewId)));
+      window.scrollTo({top:0, behavior:"smooth"});
+    }
+
+    async function copyText(text, successMessage) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const area = document.createElement("textarea"); area.value = text; area.style.position = "fixed"; area.style.opacity = "0"; document.body.appendChild(area); area.select(); document.execCommand("copy"); area.remove();
+      }
+      showToast(successMessage);
+    }
+
+    function exportBackup() {
+      const payload = {app:"AI 学习互动框架", appVersion:APP_VERSION, exportedAt:new Date().toISOString(), state};
+      const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json;charset=utf-8"});
+      const link = document.createElement("a");
+      const date = new Date().toLocaleDateString("zh-CN", {timeZone:"Asia/Shanghai",year:"2-digit",month:"2-digit",day:"2-digit"}).replaceAll("/","");
+      link.href = URL.createObjectURL(blob); link.download = `${date} AI学习进度备份 v2.1.json`; link.click(); URL.revokeObjectURL(link.href);
+      showToast("进度备份已导出");
+    }
+
+    function importBackup(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const payload = JSON.parse(reader.result);
+          if (!payload.state || ![1,2].includes(payload.state.schemaVersion)) throw new Error("备份格式不兼容");
+          if (!confirm("导入会替换当前浏览器中的学习状态，是否继续？")) return;
+          state = payload.state.schemaVersion === 1 ? migrateLegacyState(payload.state) : {...defaultState(), ...payload.state, schemaVersion:2}; saveState(); renderAll(); showToast("备份已恢复");
+        } catch (error) { alert(`无法导入：${error.message}`); }
+      };
+      reader.readAsText(file,"utf-8");
+    }
+
+    function reviewPrompt() {
+      const weak = allAtoms().filter(unit => getStatus(unit.id) === "review" || (state.notes[unit.id]?.question || "").trim());
+      if (!weak.length) return "我目前没有标记需复习的知识点。请基于 AI 学习框架给我做一次当前进度诊断。";
+      return `请根据以下 AI 学习薄弱点安排一次复习。先判断它们的前置关系，每次只处理一个最基础的缺口，并用检查题验证。\n\n${weak.map(unit=>`- ${unit.id} ${unit.title}：${state.notes[unit.id]?.question || "已标记需复习"}`).join("\n")}\n\n教学顺序：直观解释 → 简单例子 → 必要公式 → 练习 → 3—5 个检查问题。`;
+    }
+
+    const teachingProtocol = `请先读取《AI 学习互动框架》和我导出的进度 JSON，根据当前状态继续教学。\n\n规则：\n1. 先读取“学习中”“需复习”和困惑记录，不假设我已掌握后续内容。\n2. 我的数学基础较弱，按“直观解释 → 简单例子 → 必要公式 → 代码或练习 → 3—5 个检查问题”教学。\n3. 每次只推进一个小节，除非我明确要求快速浏览。\n4. 答错时回到前置概念并解释错因。\n5. 只有我明确确认掌握后，才建议把状态改为“已掌握”。\n6. 结束时给出本次掌握、仍需复习、下一位置和具体状态修改建议。\n7. 教育应用同时讨论有效性、公平、隐私、研究设计与教师工作流。`;
+
+    document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => switchView(tab.dataset.view)));
+    document.getElementById("nextOpenBtn").addEventListener("click", () => { const next = nextUnit(); if (!next) return; state.selectedId = next.moduleId; state.selectedUnitId = next.unitId; state.selectedAtomId=next.id; state.mapLevel="unit"; if (getStatus(next.id) === "not-started") state.statuses[next.id] = "learning"; saveState(); renderAll(); });
+    document.getElementById("continueBtn").addEventListener("click", () => { switchView("mapView"); document.getElementById("nextOpenBtn").click(); });
+    document.getElementById("mapBackBtn").addEventListener("click",()=>{if(state.mapLevel==="unit"){state.mapLevel="module";state.selectedAtomId=null;}else if(state.mapLevel==="module"){state.mapLevel="global";state.selectedAtomId=null;}saveState();renderMap();renderDetail();});
+    document.getElementById("searchInput").addEventListener("input", renderOutline);
+    document.getElementById("statusFilter").addEventListener("change", renderOutline);
+    document.getElementById("expandAllBtn").addEventListener("click", event => { const blocks = [...document.querySelectorAll(".module-block")]; const shouldOpen = blocks.some(block => !block.open); blocks.forEach(block => block.open = shouldOpen); event.target.textContent = shouldOpen ? "收起全部" : "展开全部"; });
+    document.getElementById("clearLogBtn").addEventListener("click", () => { if(confirm("只清空状态变更记录，不影响学习状态和笔记。是否继续？")){state.history=[];saveState();renderHistory();showToast("记录已清空");} });
+    document.getElementById("copyReviewBtn").addEventListener("click", () => copyText(reviewPrompt(),"复习指令已复制"));
+    document.getElementById("copyProtocolBtn").addEventListener("click", () => copyText(teachingProtocol,"教学协议已复制"));
+    ["exportBtn","exportBtn2"].forEach(id => document.getElementById(id).addEventListener("click",exportBackup));
+    ["importBtn","importBtn2"].forEach(id => document.getElementById(id).addEventListener("click",()=>document.getElementById("importFile").click()));
+    document.getElementById("importFile").addEventListener("change", event => { const file = event.target.files[0]; if(file) importBackup(file); event.target.value=""; });
+    document.getElementById("editModeBtn").addEventListener("click", () => { state.editMode=!state.editMode; saveState(); renderAll(); if(state.editMode){switchView("mapView");showToast("编辑模式已开启");} else showToast("编辑模式已关闭"); });
+    document.getElementById("resetContentBtn").addEventListener("click", () => { if(confirm("恢复默认课程内容会删除所有标题修改和自定义知识点，但保留核心知识点的学习笔记与状态。是否继续？")){state.overrides={};state.customUnits={};saveState();renderAll();showToast("课程内容已恢复默认");} });
+    document.getElementById("resetBtn").addEventListener("click", () => { if(confirm("这会清除当前浏览器中的全部进度、笔记、自定义内容和记录。建议先导出备份。确定继续？")){state=defaultState();saveState();renderAll();showToast("全部个人数据已重置");} });
+
+    let resizeTimer;
+    window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer=setTimeout(renderMap,140); });
+    renderAll();
+  </script>
+</body>
+</html>
